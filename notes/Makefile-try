@@ -1,0 +1,36 @@
+LANG_NAME = json
+PROJ_NAME := tree-sitter-$(LANG_NAME)
+LIB_NAME := lib$(PROJ_NAME)
+INCLUDE_NAME := tree_sitter #???
+
+# ifeq (, $(VERS_TAG))
+#   NO_TAG := No VERS_TAG!!
+# # 	@echo "No VERS_TAG!!"
+# endif
+
+ifndef VERS_TAG
+VERS_TAG := $(shell git describe --tags )
+VERS_TAG := $(subst v,,$(VERS_TAG))
+endif
+
+VERS_WORDS := $(subst ., ,$(VERS_TAG))
+
+VERS_MAJ := $(word 1, $(VERS_WORDS))
+VERS_MIN := $(word 2, $(VERS_WORDS))
+VERS_PATCH := $(word 3, $(VERS_WORDS))
+VERS_MAJMIN := $(VERS_MAJ).$(VERS_MIN) # was MAJ
+VERS_FULL := $(VERS_MAJ).$(VERS_MIN).$(VERS_PATCH)
+
+all: 
+	@echo "VERS_TAG: $(VERS_TAG)"
+	@echo "VERS_MAJ: $(VERS_MAJ)"
+	@echo "VERS_MIN: $(VERS_MIN)"
+	@echo "VERS_PATCH: $(VERS_PATCH)"
+	@echo "VERS_FULL: $(VERS_FULL)"
+# 	@echo $(NO_TAG)
+# 	ifeq (, $(VERS_TAG))
+# 		@echo "No VERS_TAG!!"
+# 	endif
+
+
+

@@ -1,0 +1,121 @@
+# updated makefile for 0.20.7 that versions and shunts
+
+VERSION := 0.6.3
+
+PROJ_NAME := tree-sitter
+LIB_NAME := lib$(PROJ_NAME)
+INCLUDE_NAME := tree_sitter
+
+# ABI versioning -- is it, though???
+VERS_MAJ := 0.33
+VERS_MIN := 4 # never used directly but only as part of VERS_MAJMIN
+
+# collect sources
+ifneq ($(AMALGAMATED),1)
+	SRC := $(wildcard lib/src/*.c)
+	# do not double-include amalgamation
+	SRC := $(filter-out lib/src/lib.c,$(SRC))
+else
+	# use amalgamated build
+	SRC := lib/src/lib.c
+endif
+OBJ := $(SRC:.c=.o)
+
+# define default flags, and override to append mandatory flags
+CFLAGS ?= -O3 -Wall -Wextra -Werror
+override CFLAGS += -std=gnu99 -fPIC -Ilib/src -Ilib/include
+
+# Nothing after this point is project-specific. Example target results, given:
+# 
+#   PROJ_NAME := one-example
+#   VERS_MAJ := 0.2
+#   VERS_MIN := 3
+# 
+# all:
+#   proj_dir/
+#     libone-example.0.2.3.dylib or libone-example.so.0.2.3
+#     libone-example.0.2.dylib or libone-example.so.0.2 (symlink to 0.2.3)
+#     libone-example.dylib or libone-example.so (symlink to 0.2.3)
+#     libone-example.0.2.3.a 
+#     libone-example.a (symlink)
+#   
+# install:
+#   /usr/local/lib/
+#     one-example.0.2.3/
+#       libone-example.0.2.3.dylib or libone-example.so.0.2.3
+#       libone-example.0.2.3.a 
+# 
+# install-and-symlink: 
+#   /usr/local/lib/
+#     one-example.0.2.3/
+#       libone-example.0.2.3.dylib or libone-example.so.0.2.3
+#       libone-example.0.2.3.a 
+#       libone-example.0.2.dylib or libone-example.so.0.2 (symlink to 0.2.3)
+#       libone-example.dylib or libone-example.so (symlink to 0.2.3)
+#       libone-example.a (symlink)
+  
+VERS_MAJMIN := $(VERS_MAJ).$(VERS_MIN)
+
+SHUNTLIB ?= /$(PROJ_NAME)
+SHUNTINCLUDE ?= /$(INCLUDE_NAME).$(VERS_MAJMIN)
+
+# install directory layout
+PREFIX ?= /usr/local
+INCLUDEDIR ?= $(PREFIX)/include$(SHUNTINCLUDE)
+LIBDIR ?= $(PREFIX)/lib$(SHUNTLIB)
+PCLIBDIR ?= $(LIBDIR)/pkgconfig
+
+# OS-specific bits
+ifeq ($(shell uname),Darwin)
+	SOEXT = dylib
+	SOEXT_MAJ = $(VERS_MAJ).dylib
+	SOEXT_MAJMIN = $(VERS_MAJMIN).dylib
+	LINKSHARED += -dynamiclib -Wl,-install_name,$(LIBDIR)/$(LIB_NAME).$(VERS_MAJ).dylib
+else
+	SOEXT = so
+	SOEXT_MAJ = so.$(VERS_MAJ)
+	SOEXT_MAJMIN = so.$(VERS_MAJMIN)
+	LINKSHARED += -shared -Wl,-soname,$(LIB_NAME).so.$(VERS_MAJ)
+endif
+ifneq (,$(filter $(shell uname),FreeBSD NetBSD DragonFly))
+	PCLIBDIR := $(PREFIX)/libdata/pkgconfig
+endif
+
+# all: $(LIB_NAME).a $(LIB_NAME).$(SOEXT_MAJMIN)
+# 
+# $(LIB_NAME).a: $(OBJ)
+# 	$(AR) rcs $@ $^
+
+all: $(LIB_NAME).$(VERS_MAJMIN).a $(LIB_NAME).$(SOEXT_MAJMIN)
+
+$(LIB_NAME).$(VERS_MAJMIN).a: $(OBJ)
+	$(AR) rcs $@ $^
+	ln -sf $@ $(LIB_NAME).a
+
+$(LIB_NAME).$(SOEXT_MAJMIN): $(OBJ)
+	$(CC) $(LDFLAGS) $(LINKSHARED) $^ $(LDLIBS) -o $@
+	ln -sf $@ $(LIB_NAME).$(SOEXT)
+	ln -sf $@ $(LIB_NAME).$(SOEXT_MAJ)
+
+install: all
+	install -d '$(DESTDIR)$(LIBDIR)'
+	install -m755 $(LIB_NAME).$(VERS_MAJMIN).a '$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(VERS_MAJMIN).a
+	install -m755 $(LIB_NAME).$(SOEXT_MAJMIN) '$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(SOEXT_MAJMIN)
+	install -d '$(DESTDIR)$(INCLUDEDIR)'/$(INCLUDE_NAME)
+	install -m644 lib/include/$(INCLUDE_NAME)/*.h '$(DESTDIR)$(INCLUDEDIR)'/$(INCLUDE_NAME)/
+	install -d '$(DESTDIR)$(PCLIBDIR)'
+	sed -e 's|@LIBDIR@|$(LIBDIR)|;s|@INCLUDEDIR@|$(INCLUDEDIR)|;s|@VERSION@|$(VERSION)|' \
+	    -e 's|=$(PREFIX)|=$${prefix}|' \
+	    -e 's|@PREFIX@|$(PREFIX)|' \
+	    $(PROJ_NAME).pc.in > '$(DESTDIR)$(PCLIBDIR)'/$(PROJ_NAME).pc
+	    
+install-and-symlink: install
+	ln -sf $(LIB_NAME).$(VERS_MAJMIN).a '$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).a
+	ln -sf $(LIB_NAME).$(SOEXT_MAJMIN) '$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(SOEXT_MAJ)
+	ln -sf $(LIB_NAME).$(SOEXT_MAJMIN) '$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(SOEXT)
+
+clean:
+	rm -f lib/src/*.o $(LIB_NAME).a $(LIB_NAME).$(VERS_MAJMIN).a \
+	  $(LIB_NAME).$(SOEXT) $(LIB_NAME).$(SOEXT_MAJ) $(LIB_NAME).$(SOEXT_MAJMIN)
+
+.PHONY: all install clean

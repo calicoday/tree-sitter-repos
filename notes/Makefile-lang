@@ -1,0 +1,133 @@
+# lang json makefile
+
+VERSION := 0.19.0
+
+LANG_NAME = json
+PROJ_NAME := tree-sitter-$(LANG_NAME)
+LIB_NAME := lib$(PROJ_NAME)
+INCLUDE_NAME := tree_sitter #???
+
+# ABI versioning -- is it, though???
+VERS_MAJ := 0.55
+VERS_MIN := 7 # never used directly but only as part of VERS_MAJMIN
+
+# Repository
+SRC_DIR := src
+
+LANG_REPO_URL := $(shell git -C $(SRC_DIR) remote get-url origin )
+
+ifeq (, $(LANG_NAME))
+	LANG_NAME := $(shell basename $(LANG_REPO_URL))
+	LANG_NAME := $(subst tree-sitter-,,$(LANG_NAME))
+	LANG_NAME := $(subst .git,,$(LANG_NAME))
+endif
+
+ifeq (, $(LANG_URL))
+	LANG_URL := $(subst :,/,$(LANG_REPO_URL))
+	LANG_URL := $(subst git@,https://,$(LANG_URL))
+	LANG_URL := $(subst .git,,$(LANG_URL))
+endif
+
+UPPER_LANG_NAME := $(shell echo $(LANG_NAME) | tr a-z A-Z )
+
+# install directory layout
+PREFIX ?= /usr/local
+INCLUDEDIR ?= $(PREFIX)/include
+LIBDIR ?= $(PREFIX)/lib
+PCLIBDIR ?= $(LIBDIR)/pkgconfig
+
+# collect C++ sources, and link if necessary
+CPPSRC := $(wildcard $(SRC_DIR)/*.cc)
+
+ifeq (, $(CPPSRC))
+	ADD_LIBS := 
+else
+	ADD_LIBS := -lc++
+endif
+
+# collect sources
+SRC := $(wildcard $(SRC_DIR)/*.c)
+SRC += $(CPPSRC)
+OBJ := $(addsuffix .o,$(basename $(SRC)))
+
+# ABI versioning
+SONAME_MAJOR := 0
+SONAME_MINOR := 0
+
+CFLAGS ?= -O3 -Wall -Wextra -I$(SRC_DIR)
+CXXFLAGS ?= -O3 -Wall -Wextra -I$(SRC_DIR)
+override CFLAGS += -std=gnu99 -fPIC
+override CXXFLAGS += -fPIC
+
+# OS-specific bits
+ifeq ($(shell uname),Darwin)
+	SOEXT = dylib
+	SOEXT_MAJ = $(VERS_MAJ).dylib
+	SOEXT_MAJMIN = $(VERS_MAJMIN).dylib
+	LINKSHARED += -dynamiclib -Wl,
+	ifneq ($(ADD_LIBS),)
+	LINKSHARED += $(ADD_LIBS),
+	endif
+	LINKSHARED += -install_name,$(LIBDIR)/$(LIB_NAME).$(VERS_MAJ).dylib
+
+# 	SOEXTVER_MAJOR = $(SONAME_MAJOR).dylib
+# 	SOEXTVER = $(SONAME_MAJOR).$(SONAME_MINOR).dylib
+# 	LINKSHARED := $(LINKSHARED)-dynamiclib -Wl,
+# 	ifneq ($(ADD_LIBS),)
+# 	LINKSHARED := $(LINKSHARED)$(ADD_LIBS),
+# 	endif
+# 	LINKSHARED := $(LINKSHARED)-install_name,$(LIBDIR)/libtree-sitter-$(LANG_NAME).$(SONAME_MAJOR).dylib,-rpath,@executable_path/../Frameworks
+else
+	SOEXT = so
+	SOEXTVER_MAJOR = so.$(SONAME_MAJOR)
+	SOEXTVER = so.$(SONAME_MAJOR).$(SONAME_MINOR)
+	LINKSHARED := $(LINKSHARED)-shared -Wl,
+	ifneq ($(ADD_LIBS),)
+	LINKSHARED := $(LINKSHARED)$(ADD_LIBS),
+	endif
+	LINKSHARED := $(LINKSHARED)-soname,libtree-sitter-$(LANG_NAME).so.$(SONAME_MAJOR)
+endif
+ifneq (,$(filter $(shell uname),FreeBSD NetBSD DragonFly))
+	PCLIBDIR := $(PREFIX)/libdata/pkgconfig
+endif
+
+all: libtree-sitter-$(LANG_NAME).a libtree-sitter-$(LANG_NAME).$(SOEXTVER) bindings/c/$(LANG_NAME).h bindings/c/tree-sitter-$(LANG_NAME).pc
+
+libtree-sitter-$(LANG_NAME).a: $(OBJ)
+	$(AR) rcs $@ $^
+
+libtree-sitter-$(LANG_NAME).$(SOEXTVER): $(OBJ)
+	$(CC) $(LDFLAGS) $(LINKSHARED) $^ $(LDLIBS) -o $@
+	ln -sf $@ libtree-sitter-$(LANG_NAME).$(SOEXT)
+	ln -sf $@ libtree-sitter-$(LANG_NAME).$(SOEXTVER_MAJOR)
+
+bindings/c/$(LANG_NAME).h:
+	sed -e 's|@UPPER_LANGNAME@|$(UPPER_LANG_NAME)|' \
+		-e 's|@LANGNAME@|$(LANG_NAME)|' \
+		bindings/c/tree-sitter.h.in > $@
+
+bindings/c/tree-sitter-$(LANG_NAME).pc:
+	sed -e 's|@LIBDIR@|$(LIBDIR)|;s|@INCLUDEDIR@|$(INCLUDEDIR)|;s|@VERSION@|$(VERSION)|' \
+		-e 's|=$(PREFIX)|=$${prefix}|' \
+		-e 's|@PREFIX@|$(PREFIX)|' \
+		-e 's|@ADD_LIBS@|$(ADD_LIBS)|' \
+		-e 's|@LANGNAME@|$(LANG_NAME)|' \
+		-e 's|@LANGURL@|$(LANG_URL)|' \
+		bindings/c/tree-sitter.pc.in > $@
+
+install: all
+	install -d '$(DESTDIR)$(LIBDIR)'
+	install -m755 libtree-sitter-$(LANG_NAME).a '$(DESTDIR)$(LIBDIR)'/libtree-sitter-$(LANG_NAME).a
+	install -m755 libtree-sitter-$(LANG_NAME).$(SOEXTVER) '$(DESTDIR)$(LIBDIR)'/libtree-sitter-$(LANG_NAME).$(SOEXTVER)
+	ln -sf libtree-sitter-$(LANG_NAME).$(SOEXTVER) '$(DESTDIR)$(LIBDIR)'/libtree-sitter-$(LANG_NAME).$(SOEXTVER_MAJOR)
+	ln -sf libtree-sitter-$(LANG_NAME).$(SOEXTVER) '$(DESTDIR)$(LIBDIR)'/libtree-sitter-$(LANG_NAME).$(SOEXT)
+	install -d '$(DESTDIR)$(INCLUDEDIR)'/tree_sitter
+	install -m644 bindings/c/$(LANG_NAME).h '$(DESTDIR)$(INCLUDEDIR)'/tree_sitter/
+	install -d '$(DESTDIR)$(PCLIBDIR)'
+	install -m644 bindings/c/tree-sitter-$(LANG_NAME).pc '$(DESTDIR)$(PCLIBDIR)'/
+
+clean:
+	rm -f $(OBJ) libtree-sitter-$(LANG_NAME).a libtree-sitter-$(LANG_NAME).$(SOEXT) libtree-sitter-$(LANG_NAME).$(SOEXTVER_MAJOR) libtree-sitter-$(LANG_NAME).$(SOEXTVER)
+	rm -f bindings/c/$(LANG_NAME).h bindings/c/tree-sitter-$(LANG_NAME).pc
+
+.PHONY: all install clean

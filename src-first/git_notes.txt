@@ -1,0 +1,163 @@
+### more, trying to add commit short id
+
+git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' "https://github.com/tree-sitter/tree-sitter-rust" | tail -n1 | cut -d/ -f3
+
+git -c 'versionsort.suffix=-' ls-remote -q --tags --refs --sort='v:refname' "https://github.com/tree-sitter/tree-sitter-rust" | tail -n1 | cut -d/ -f1,3 | sed -e "s/^\(........\)[^\t]*\t[^[:digit:]]*\([:digit:]*\)\.\([:digit:]*\)\.\([:digit:]*\)$/\2-\1/"
+
+git -c 'versionsort.suffix=-' ls-remote --tags --refs --sort='v:refname' "https://github.com/tree-sitter/tree-sitter-rust" | tail -n1
+
+
+git describe
+  --all   the most recent tag, not just most recent ANNOTATED tag
+  --long  adds the sha
+  [--always stops it from failing if there's no tag but we get this with the other opts]
+  
+=== rust: 
+
+git describe --all --long
+=> tags/v0.20.3-0-g0431a2c
+
+[git describe --always <- no --all
+=> v0.19.0-59-g0431a2c <- wrong tag!!!]
+
+git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' "https://github.com/tree-sitter/tree-sitter-rust" | tail -n1
+=> 0431a2c60828731f27491ee9fdefe25e250ce9c9	refs/tags/v0.20.3
+
+sed -e "s/\(.......\).*\([[:digit:]][[:digit:]]*\)\.\([[:digit:]]*\)\.\([[:digit:]]*\)$/\2.\3.\4-\1/"
+
+
+sed -e "s/[^[:digit:]]*\([[:digit:]]*\)\.\([[:digit:]]*\)\.\([[:digit:]]*\).*/\1.\2.\3/"
+
+# try --refs instead of --tags
+git -c 'versionsort.suffix=-' ls-remote --refs --sort='v:refname' "https://github.com/tree-sitter/tree-sitter-rust" | tail -n1
+=> 0431a2c60828731f27491ee9fdefe25e250ce9c9	refs/tags/v0.20.3
+
+# try both
+git -c 'versionsort.suffix=-' ls-remote --tags --refs --sort='v:refname' "https://github.com/tree-sitter/tree-sitter-rust" | tail -n1
+=> 0431a2c60828731f27491ee9fdefe25e250ce9c9	refs/tags/v0.20.3
+
+
+### in Makefile
+
+LONG_TAG := $(shell git describe --all --long)
+COMMIT := $(shell echo $(LONG_TAG) | sed -e "s/.*\(.......\)/\1/")
+ifeq (, $(shell git describe))
+	# never tagged (will write 'fatal: No names found' to stderr)
+	VERS_TAG := untagged
+else
+	VERS_TAG := $(shell echo $(LONG_TAG) | sed -e \
+		"s/[^[:digit:]]*\([[:digit:]]*\)\.\([[:digit:]]*\)\.\([[:digit:]]*\).*/\1.\2.\3/")
+endif
+
+long_tag = `git describe --all --long`
+
+
+
+tag = (`git describe`.empty? ?
+  `git describe --all --long | sed -e "s/.*\(.......\)/\1/"` :
+  `
+
+
+echo "heads/main-0-ga4b9187" | sed -e "s/.*\(.......\)/\1/"
+=> a4b9187
+
+ruby -e 'puts `git describe`.empty?'
+
+
+=== make: 
+
+git describe --all --long
+=> heads/main-0-ga4b9187
+- make has never been tagged -- how to tell???
+
+git describe
+=> 'fatal: No names found, cannot describe anything.'
+
+
+git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' "https://github.com/alemuller/tree-sitter-make" | tail -n1
+=> 
+[!!! nothing!!!]
+
+last_tag = `git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' "https://github.com/alemuller/tree-sitter-make" | tail -n1`
+vers_tag = (last_tag.empty? ?
+  `git ls-remote "https://github.com/alemuller/tree-sitter-make" HEAD` :
+  last_tag.
+
+
+
+# try --refs instead of --tags
+git -c 'versionsort.suffix=-' ls-remote --refs --sort='v:refname' "https://github.com/alemuller/tree-sitter-make" | tail -n1
+=> 10e40446856c9d21df0569e46f2969873ff42903	refs/pull/14/merge
+
+# try both
+git -c 'versionsort.suffix=-' ls-remote --tags --refs --sort='v:refname' "https://github.com/alemuller/tree-sitter-make" | tail -n1
+=> 
+[!!! nothing!!!]
+
+
+### prob this:
+sed -e "s/^\(........\)[^\t]*\t[^[:digit:]]*\([[:digit:]]*\)\.\([[:digit:]]*\)\.\([[:digit:]]*\).*/\2.\3.\4-\1/"
+
+
+sed -e "s/^\(........\)[^\t]*\t[^[:digit:]]*\([[:digit:]]*\).*/oo-\1-\2-oo/"
+
+sed -e "s/^\(........\)[^\t]*\t[^[:digit:]]*\([:digit:]..\).*/oo-\1-\2-oo/"
+
+
+
+
+git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' https://github.com/tree-sitter/tree-sitter-c
+
+
+
+REPO=https://github.com/namespace/repo.git && \
+git clone $REPO --single-branch --branch \
+$(git ls-remote --tags --refs $REPO | tail -n1 | cut -d/ -f3)
+
+
+TSLANG=embedded-template && git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' https://github.com/tree-sitter/tree-sitter-$TSLANG | tail -n1 | cut -d/ -f3
+
+
+TSLANG=embedded-template
+git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' https://github.com/tree-sitter/tree-sitter-$TSLANG | tail -n1 | cut -d/ -f3
+
+
+for each lang and tree-sitter vers:
+
+git clone -b 'v2.0' --depth 1 https://github.com/git/git.git
+
+
+# list last 3 tree-sitters...
+
+git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' https://github.com/tree-sitter/tree-sitter | tail -n5 | cut -d/ -f3
+
+v0.20.3
+v0.20.4
+v0.20.5
+v0.20.6
+v0.20.7
+
+v0.19.5
+v0.20.0
+v0.20.6
+v0.20.7
+
+
+git clone -b 'v0.19.5' --depth 1 http://github.com/tree-sitter/tree-sitter.git
+
+
+
+
+git ls-tree -r --name-only HEAD | while read filename; do
+  echo "$(git log -1 --format="%ad" -- $filename) $filename"
+done
+
+Since "HEAD" is just a reference, you can use any reference you want, be it a tag, branch, commit hash, etc.. – 
+Andrew M.
+ May 30, 2014 at 23:29
+3
+as @ThorSummoner said, use %ai format for date, and then just pipe to sort to sort the results: git ls-tree -r --name-only HEAD | while read filename; do   echo "$(git log -1 --format="%ai" -- $filename) $filename"; done | sort – 
+John Hunt
+ Aug 18, 2017 at
+ 
+ 

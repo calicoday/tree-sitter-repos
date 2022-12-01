@@ -1,0 +1,52 @@
+# Repository
+SRC_DIR := src
+
+# shared makefile for many langs, get this repo's lang name from git
+LANG_REPO_URL := $(shell git -C $(SRC_DIR) remote get-url origin )
+
+# if LANG_NAME hasn't been set as env var
+ifeq (, $(LANG_NAME))
+	LANG_NAME := $(shell basename $(LANG_REPO_URL))
+	LANG_NAME := $(subst tree-sitter-,,$(LANG_NAME))
+	LANG_NAME := $(subst .git,,$(LANG_NAME))
+endif
+
+# seems to be turning ssh into https... unnec now???
+ifeq (, $(LANG_URL))
+	LANG_URL := $(subst :,/,$(LANG_REPO_URL))
+	LANG_URL := $(subst git@,https://,$(LANG_URL))
+	LANG_URL := $(subst .git,,$(LANG_URL))
+endif
+
+UPPER_LANG_NAME := $(shell echo $(LANG_NAME) | tr a-z A-Z )
+
+
+
+
+CFLAG_INCLUDES := -Ilib/src -Ilib/include
+
+# ??? not getting this form: git@github.com:/youruser/somename.git
+# eg GIT_REPO_URL := https://github.com/alemuller/tree-sitter-make.git
+
+# shared makefile for runtime and langs, get this repo's name from git
+GIT_REPO_URL := $(shell git -C $(SRC_DIR) remote get-url origin )
+
+REPO_URL := $(subst .git,,$(GIT_REPO_URL)) 
+# => https://github.com/alemuller/tree-sitter-make
+
+PROJ_NAME := $(shell basename $(REPO_URL))
+# => tree-sitter-make
+
+# if it's not exactly 'tree-sitter', extract the lang name
+ifneq (tree-sitter, $(PROJ_NAME))
+	LANG_NAME := $(subst tree-sitter-,,$(LANG_NAME))
+	# => make
+	UPPER_LANG_NAME := $(shell echo $(LANG_NAME) | tr a-z A-Z )
+	### TMP!!! currently, langs have src/ not lib/src/, lib/include/
+	CFLAG_INCLUDES := -Isrc
+	# except the ones that don't: sexp, typescript; wasm has 2, wast/src/ and wat/src/
+endif
+
+LIB_NAME := lib$(PROJ_NAME)
+INCLUDE_NAME := $(subst -,_,$(PROJ_NAME))
+
