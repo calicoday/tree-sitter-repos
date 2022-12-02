@@ -1,52 +1,47 @@
-# Repository
-SRC_DIR := src
+# incoming: RUNTIME_VERS, MAKINGS_DIR, BUILD_DIR
+# poss SRC_DIR??? to deal with wasm/wat, wasm/watever???
 
-# shared makefile for many langs, get this repo's lang name from git
-LANG_REPO_URL := $(shell git -C $(SRC_DIR) remote get-url origin )
-
-# if LANG_NAME hasn't been set as env var
-ifeq (, $(LANG_NAME))
-	LANG_NAME := $(shell basename $(LANG_REPO_URL))
-	LANG_NAME := $(subst tree-sitter-,,$(LANG_NAME))
-	LANG_NAME := $(subst .git,,$(LANG_NAME))
-endif
-
-# seems to be turning ssh into https... unnec now???
-ifeq (, $(LANG_URL))
-	LANG_URL := $(subst :,/,$(LANG_REPO_URL))
-	LANG_URL := $(subst git@,https://,$(LANG_URL))
-	LANG_URL := $(subst .git,,$(LANG_URL))
-endif
-
-UPPER_LANG_NAME := $(shell echo $(LANG_NAME) | tr a-z A-Z )
-
-
-
-
-CFLAG_INCLUDES := -Ilib/src -Ilib/include
-
-# ??? not getting this form: git@github.com:/youruser/somename.git
-# eg GIT_REPO_URL := https://github.com/alemuller/tree-sitter-make.git
-
-# shared makefile for runtime and langs, get this repo's name from git
-GIT_REPO_URL := $(shell git -C $(SRC_DIR) remote get-url origin )
-
-REPO_URL := $(subst .git,,$(GIT_REPO_URL)) 
-# => https://github.com/alemuller/tree-sitter-make
-
-PROJ_NAME := $(shell basename $(REPO_URL))
-# => tree-sitter-make
-
-# if it's not exactly 'tree-sitter', extract the lang name
-ifneq (tree-sitter, $(PROJ_NAME))
-	LANG_NAME := $(subst tree-sitter-,,$(LANG_NAME))
-	# => make
-	UPPER_LANG_NAME := $(shell echo $(LANG_NAME) | tr a-z A-Z )
+# ifneq (, $(LANG_NAME))
 	### TMP!!! currently, langs have src/ not lib/src/, lib/include/
+	SRC_DIR := src
 	CFLAG_INCLUDES := -Isrc
 	# except the ones that don't: sexp, typescript; wasm has 2, wast/src/ and wat/src/
-endif
+	
+	# add the tree-sitter runtime, for parser.h
+	### TMP!!! will version_roster but for now, if we haven't been passed RUNTIME_VERS, set
+	RUNTIME_VERS ?= 0.20.6
+	CFLAG_INCLUDES += -Itree_sitter.$(RUNTIME_VERS)
+	
+	# collect C++ sources, and link if necessary
+	CPPSRC := $(wildcard $(SRC_DIR)/*.cc)
+	CXXFLAGS ?= -O3 -Wall -Wextra 
+	override CXXFLAGS += -fPIC  $(CFLAG_INCLUDES)
+	
+	ifeq (, $(CPPSRC))
+		ADD_LIBS := 
+	else
+		ADD_LIBS := -lc++
+	endif
+	# add tree-sitter includes for parser.h???
+	
+	# collect sources
+	SRC := $(wildcard $(SRC_DIR)/*.c)
+	SRC += $(CPPSRC)
+# 	OBJ := $(addsuffix .o,$(basename $(SRC)))
 
-LIB_NAME := lib$(PROJ_NAME)
-INCLUDE_NAME := $(subst -,_,$(PROJ_NAME))
+	# external headers and pkgconfig
+	TMPLT_C_BINDS_PKG := tree-sitter-lang.pc.in
+	TMPLT_C_BINDS := $(MAKINGS_DIR)/tree-sitter-lang.h.in
 
+# 	SRC_C_BINDS := bindings/c
+# BUILD_DIR will have trailing slash if not empty
+	SRC_C_BINDS := $(BUILD_DIR)
+	C_BINDS := $(INCLUDE_NAME).h
+	
+	C_BINDS_PKG := $(INCLUDE_NAME).$(VERS_FULL).pc
+	C_BINDS_PKG_SHORT := $(INCLUDE_NAME).pc
+
+# endif
+
+
+# outgoing: SRC, CFLAGS???, CXXFLAGS

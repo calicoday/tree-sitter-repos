@@ -1,0 +1,25 @@
+# else
+	# collect sources
+	ifneq ($(AMALGAMATED),1)
+		SRC := $(wildcard $(SRC_DIR)/*.c)
+		# do not double-include amalgamation
+		SRC := $(filter-out $(SRC_DIR)/lib.c,$(SRC))
+	else
+		# use amalgamated build
+		SRC := $(SRC_DIR)/lib.c
+	endif
+# 	OBJ := $(SRC:.c=.o)
+
+	# external headers and pkgconfig
+	# runtime .in in proj dir
+	TMPLT_C_BINDS_PKG := $(PROJ_NAME).pc.in
+	TMPLT_C_BINDS :=
+# must have trailing slash if not empty
+	SRC_C_BINDS := lib/include/
+	C_BINDS := tree_sitter/*.h
+# 	SRC_C_BINDS := lib/include/tree_sitter
+# 	C_BINDS := *.h
+	
+	C_BINDS_PKG := $(INCLUDE_NAME).$(VERS_FULL).pc
+	C_BINDS_PKG_SHORT := $(INCLUDE_NAME).pc
+# endif

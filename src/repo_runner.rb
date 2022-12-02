@@ -50,6 +50,7 @@ class RepoRunner < Sunny
 
     cmd_list = {
       "noop" => "No-op for dev",
+      "clean_libs" => "Rm all built libs in repos",
       "clone_lang_core" =>
         "Git clone each of the core tree-sitter lang repos (curr only most recent version)",
       "clone_lang" => 
@@ -292,6 +293,14 @@ class RepoRunner < Sunny
     FileUtils.cd(g_opts.workdir)
     puts "RepoRunner cmd: #{cmd.inspect}, g_opts: #{g_opts.inspect}"
     cmdline = case cmd
+    when 'clean_libs'
+      Dir.children(Dir.pwd).each do |repo|
+        puts "clean_libs #{repo}"
+        puts `rm #{repo}/*/*.a #{repo}/*/*.dylib`
+        # and generated .h, .pc if any
+        proj_name = repo.gsub(/\..*/, '').tr('-', '_')
+        puts `rm #{repo}/*/#{proj_name}.h #{repo}/*/#{proj_name}.pc`
+      end
     when 'make_lang' 
       g_opts.lang_list.split(/,\s*/).each do |lang_repo| 
         repo = lang_repo.gsub(/^tree-sitter-/, '').gsub(/^/, 'tree-sitter-')
@@ -301,8 +310,6 @@ class RepoRunner < Sunny
     when 'make_runtime' 
       g_opts.tag_list.split(/,\s*/).each do |vers_tag| 
         make_runtime("tree-sitter.#{vers_tag}", g_opts)
-#         make_runtime("tree-sitter-#{vers_tag}", g_opts)
-#         make_runtime("tree-sitter-v#{vers_tag}", g_opts)
       end
     when 'clone_lang'
       g_opts.lang_list.split(/,\s*/).each do |lang_repo|
