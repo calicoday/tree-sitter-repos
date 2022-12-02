@@ -12,14 +12,15 @@
 
 	# external headers and pkgconfig
 	# runtime .in in proj dir
-	TMPLT_C_BINDS_PKG := $(PROJ_NAME).pc.in
+# 	TMPLT_C_BINDS_PKG := $(PROJ_NAME).pc.in
+	TMPLT_C_BINDS_PKG := $(MAKINGS_DIR)/tree_sitter_runtime.pc.in
 	TMPLT_C_BINDS :=
 # must have trailing slash if not empty
 	SRC_C_BINDS := lib/include/
-	C_BINDS := tree_sitter/*.h
-# 	SRC_C_BINDS := lib/include/tree_sitter
+	C_BINDS := $(wildcard $(SRC_C_BINDS)*.h)
 # 	C_BINDS := *.h
-	
+	# tree_sitter/ in INCLUDE_SUBDIR bc we need to create it
+
 	C_BINDS_PKG := $(INCLUDE_NAME).$(VERS_FULL).pc
 	C_BINDS_PKG_SHORT := $(INCLUDE_NAME).pc
 # endif

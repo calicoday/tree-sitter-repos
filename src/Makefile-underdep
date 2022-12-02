@@ -95,8 +95,8 @@ override CFLAGS += -std=gnu99 -fPIC $(CFLAG_INCLUDES)
 
 
 ifeq (, $(LANG_NAME))
-	# must have trailing slash if not empty
-	INCLUDE_SUBDIR := tree_sitter/
+	# must have leading slash if not empty
+	INCLUDE_SUBDIR := /tree_sitter
 endif
 
 
@@ -202,12 +202,6 @@ ifneq (,$(filter $(shell uname),FreeBSD NetBSD DragonFly))
 	PCLIBDIR := $(PREFIX)/libdata/pkgconfig
 endif
 
-### new C_BINDS replacement...
-HEADERS := $(wildcard $(SRC_C_BINDS)$(INCLUDE_SUBDIR)*.h)
-HFILES := $(notdir $(HEADERS))
-# make sort also uniqs
-# UNIQ_DIRS = $(sort $(dir $(HEADERS)))
-
 
 all: build_dir \
 	$(BUILD_DIR)$(LIB_NAME).$(VERS_FULL).a \
@@ -229,32 +223,20 @@ $(BUILD_DIR)$(LIB_NAME).$(SOEXT_FULL): $(OBJ)
 	ln -sf $@ $(BUILD_DIR)$(LIB_NAME).$(SOEXT_MAJMIN)
 
 $(SRC_C_BINDS)$(C_BINDS):
-	@echo "@@@ build target: $(SRC_C_BINDS)$(C_BINDS)+++"
 	# shdnt run if .h exists, eg tree-sitter/lib/include/*.h
 	sed -e 's|@UPPER_LANG_NAME@|$(UPPER_LANG_NAME)|' \
 		-e 's|@LANG_NAME@|$(LANG_NAME)|' \
 		$(TMPLT_C_BINDS) > $@
 
-'$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(VERS_FULL).a:
-	@echo "@@@ install static lib: '$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(VERS_FULL).a+++"
+
+
+install: all
 	install -d '$(DESTDIR)$(LIBDIR)'
-	install -m755 $(BUILD_DIR)$(LIB_NAME).$(VERS_FULL).a $@
-
-'$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(SOEXT_FULL):
-	@echo "@@@ install dynamic lib: '$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(SOEXT_FULL)+++"
-	install -d '$(DESTDIR)$(LIBDIR)'
-	install -m755 $(BUILD_DIR)$(LIB_NAME).$(SOEXT_FULL) $@
-
-'$(DESTDIR)$(INCLUDEDIR)'/$(INCLUDE_SUBDIR)$(HFILES):
-	@echo "@@@ install c binds: '$(DESTDIR)$(INCLUDEDIR)'/$(INCLUDE_SUBDIR)$(HFILES)+++"
-	@echo "  HEADERS: $(HEADERS)+++"
-	@echo "  HFILES: $(HFILES)+++"
-# 	@echo "  C_BINDS: $(C_BINDS)+++"
-	install -d '$(DESTDIR)$(INCLUDEDIR)'/$(INCLUDE_SUBDIR)
-	install -m644 $(HEADERS) '$(DESTDIR)$(INCLUDEDIR)'/$(INCLUDE_SUBDIR)
-
-'$(DESTDIR)$(PCLIBDIR)'/$(C_BINDS_PKG):
-	@echo "@@@ install pkg: '$(DESTDIR)$(PCLIBDIR)'/$(C_BINDS_PKG)+++"
+	install -m755 $(BUILD_DIR)$(LIB_NAME).$(VERS_FULL).a '$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(VERS_FULL).a
+	install -m755 $(BUILD_DIR)$(LIB_NAME).$(SOEXT_FULL) '$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(SOEXT_FULL)
+	@echo "@@@ INCLUDE_SUBDIR: $(INCLUDE_SUBDIR)+++"
+	install -d '$(DESTDIR)$(INCLUDEDIR)'$(INCLUDE_SUBDIR)
+	install -m644 $(SRC_C_BINDS)$(C_BINDS) '$(DESTDIR)$(INCLUDEDIR)'$(INCLUDE_SUBDIR)
 	install -d '$(DESTDIR)$(PCLIBDIR)'
 	# not dep, do pkgconfig directly
 	sed -e 's|@LIBDIR@|$(LIBDIR)|;s|@INCLUDEDIR@|$(INCLUDEDIR)|;s|@VERSION@|$(VERSION)|' \
@@ -263,32 +245,7 @@ $(SRC_C_BINDS)$(C_BINDS):
 		-e 's|@ADD_LIBS@|$(ADD_LIBS)|' \
 		-e 's|@LANG_NAME@|$(LANG_NAME)|' \
 		-e 's|@LANG_URL@|$(LANG_URL)|' \
-		$(TMPLT_C_BINDS_PKG) > $@
-
-install: all \
-	'$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(VERS_FULL).a \
-	'$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(SOEXT_FULL) \
-	'$(DESTDIR)$(INCLUDEDIR)'/$(INCLUDE_SUBDIR)$(HFILES) \
-	'$(DESTDIR)$(PCLIBDIR)'/$(C_BINDS_PKG) 
-
-# SRC_C_BINDS := lib/include
-# C_BINDS := 
-# lib/
-#   include/
-#     api.h
-#     parser.h
-# made/
-#   [tree_sitter.pc]
-#   tree_sitter_bash.h
-#   
-# local/include/
-#   tree_sitter_bash.0.1.2/
-#     tree_sitter_base.h
-#   tree_sitter.0.4.5/
-#     tree_sitter/
-#       api.h
-#       parser.h
-
+		$(TMPLT_C_BINDS_PKG) > '$(DESTDIR)$(PCLIBDIR)'/$(C_BINDS_PKG)
 
 install-and-symlink: install
 	@echo "$$$ install-and-symlink"

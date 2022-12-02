@@ -30,8 +30,8 @@
 # 	OBJ := $(addsuffix .o,$(basename $(SRC)))
 
 	# external headers and pkgconfig
-	TMPLT_C_BINDS_PKG := tree-sitter-lang.pc.in
-	TMPLT_C_BINDS := $(MAKINGS_DIR)/tree-sitter-lang.h.in
+	TMPLT_C_BINDS_PKG := $(MAKINGS_DIR)/tree_sitter_lang.pc.in
+	TMPLT_C_BINDS := $(MAKINGS_DIR)/tree_sitter_lang.h.in
 
 # 	SRC_C_BINDS := bindings/c
 # BUILD_DIR will have trailing slash if not empty

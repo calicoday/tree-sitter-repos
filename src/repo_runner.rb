@@ -49,6 +49,7 @@ class RepoRunner < Sunny
     }
 
     cmd_list = {
+      "try" => "Try experimental Makefile for dev",
       "noop" => "No-op for dev",
       "clean_libs" => "Rm all built libs in repos",
       "clone_lang_core" =>
@@ -131,13 +132,13 @@ class RepoRunner < Sunny
 # ruby src/repo_runner.rb -i -t "0.20.0" make_runtime
 
 # install_runtimes.rb
-  def make_runtime(repo, g_opts)
+  def make_runtime(repo_dir, g_opts)
     puts "RepoRunner make_runtime"
   #   relpath_to_makefile = '../../src/Makefile-runtime' ### langs from tree-sitter-lang/
 #     relpath_to_makefile = '../../src/Makefile-runtime'
 #     relpath_to_makefile = '../../src/Makefile'
     relpath_to_makefile = '../../../src/Makefile' # one more for workdir!!!
-    FileUtils.cd(repo)
+    FileUtils.cd(repo_dir)
     FileUtils.cd('tree-sitter')
     puts "in #{Dir.pwd}"
     call = 'make'
@@ -158,6 +159,30 @@ class RepoRunner < Sunny
 # ruby src/repo_runner.rb -a -i -l "rust" make_lang <- symlinks
 #   "bash, python, html, rust, wasm, markdown, typescript, cpp, c, ruby, embedded-template, javascript, sexp, make, json, c-sharp"
 
+  # make given specific repo_dir
+  def make_one_lib(g_opts, repo_dir, repo_name=nil)
+    repo_name = repo_dir.gsub(/\..*/, '') unless repo_name
+    
+    puts
+    puts "=== #{repo_dir}"
+#     relpath_to_makefile = '../../../src/Makefile' # one more for workdir!!!
+    relpath_to_makefile = '../../../notes/Makefile-try'
+    FileUtils.cd(repo_dir)
+    FileUtils.cd(repo_name)
+    call = 'make'
+    call += ' -n'
+#     call += ' --debug' # for verbose
+#     install = ' install' if g_opts.install
+#     install = ' install-and-symlink' if g_opts.alias
+#     call += install if install
+    call += " -f #{relpath_to_makefile}" #unless g_opts.own_makefile && byo_makefile
+    puts "  `#{call}`"
+    puts `#{call}`
+    FileUtils.cd('..')
+    FileUtils.cd('..')
+    nil # no news is good news    
+  end
+  
   def make_lang(g_opts, repo_name, vers_tag=nil)
     repo_dir, vers_tag = most_recent(repo_name)
     return repo_name unless repo_dir
@@ -293,6 +318,14 @@ class RepoRunner < Sunny
     FileUtils.cd(g_opts.workdir)
     puts "RepoRunner cmd: #{cmd.inspect}, g_opts: #{g_opts.inspect}"
     cmdline = case cmd
+    when 'try'
+      puts "try: moving to ../ztmp..."
+      FileUtils.cd('../ztmp')
+      runtime_repo = 'tree-sitter.0.20.0'
+      make_one_lib(g_opts, runtime_repo)
+      lang_repo = 'tree-sitter-bash.0.19.0'
+      make_one_lib(g_opts, lang_repo)
+      
     when 'clean_libs'
       Dir.children(Dir.pwd).each do |repo|
         puts "clean_libs #{repo}"

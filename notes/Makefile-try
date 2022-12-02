@@ -1,16 +1,51 @@
-LANG_NAME = json
-PROJ_NAME := tree-sitter-$(LANG_NAME)
+
+# This must be the first line Makefile -- note: includes trailing /
+MAKINGS_DIR := $(dir $(firstword $(MAKEFILE_LIST)))
+# take off trailing / for consistency
+MAKINGS_DIR := $(shell echo $(MAKINGS_DIR) | sed -e 's/\(.*\)./\1/')
+### why can't I get $ to work in these seds???!!! make is interpolating???
+# MAKINGS_DIR := $(shell echo $(MAKINGS_DIR) | sed -e 's/.$//')
+$(info %%% MAKINGS_DIR: $(MAKINGS_DIR))
+
+### TMP!!!
+RUNTIME_VERS := 0.20.0
+
+CFLAG_INCLUDES := -Ilib/src -Ilib/include
+
+# shared makefile for runtime and langs, get this repo's name from git
+GIT_REPO_URL := $(shell git -C .git remote get-url origin )
+# can we ensure https, not this form git@github.com:/youruser/somename.git?
+
+REPO_URL := $(subst .git,,$(GIT_REPO_URL)) 
+# => eg https://github.com/alemuller/tree-sitter-make
+
+PROJ_NAME := $(shell basename $(REPO_URL))
+# => eg tree-sitter-make
+$(info "%%% PROJ_NAME: $(PROJ_NAME)+++")
+
+# if it's not 'tree-sitter' exactly, extract the lang name
+ifneq (tree-sitter, $(PROJ_NAME))
+	LANG_NAME := $(subst tree-sitter-,,$(PROJ_NAME))
+	# => eg make
+	UPPER_LANG_NAME := $(shell echo $(LANG_NAME) | tr a-z A-Z )
+endif
+
 LIB_NAME := lib$(PROJ_NAME)
-INCLUDE_NAME := tree_sitter #???
+INCLUDE_NAME := $(subst -,_,$(PROJ_NAME))
 
-# ifeq (, $(VERS_TAG))
-#   NO_TAG := No VERS_TAG!!
-# # 	@echo "No VERS_TAG!!"
-# endif
+# We can always get a result including short commit with `git describe --all --long`
+# but `git describe --tags` will return empty string if no tags at all, ie untagged repo
+TAGGED := $(shell git describe --tags)
+# => some tag or empty string, if never tagged
+LAST_TAG := $(shell git describe --all --long)
+# => eg tags/v0.20.3-0-g0431a2c (tagged v0.20.3) or heads/main-0-ga4b9187 (never tagged)
+COMMIT := $(shell echo $(LAST_TAG) | sed -e 's/.*\(.......\)/\1/')
 
-ifndef VERS_TAG
-VERS_TAG := $(shell git describe --tags )
-VERS_TAG := $(subst v,,$(VERS_TAG))
+ifeq (, $(TAGGED))
+	VERS_TAG := untagged
+else
+	VERS_TAG := $(shell echo $(TAGGED) | sed -e \
+		's/[^[:digit:]]*\([[:digit:]]*\)\.\([[:digit:]]*\)\.\([[:digit:]]*\).*/\1.\2.\3/')
 endif
 
 VERS_WORDS := $(subst ., ,$(VERS_TAG))
@@ -18,19 +53,112 @@ VERS_WORDS := $(subst ., ,$(VERS_TAG))
 VERS_MAJ := $(word 1, $(VERS_WORDS))
 VERS_MIN := $(word 2, $(VERS_WORDS))
 VERS_PATCH := $(word 3, $(VERS_WORDS))
-VERS_MAJMIN := $(VERS_MAJ).$(VERS_MIN) # was MAJ
+
+VERS_MAJMIN := $(VERS_MAJ).$(VERS_MIN)
 VERS_FULL := $(VERS_MAJ).$(VERS_MIN).$(VERS_PATCH)
 
+# collect sources
+SRC_DIR := lib/src
+CFLAG_INCLUDES := -Ilib/src -Ilib/include
+
+# must have trailing slash if not empty
+# some langs HAVE a build dir of source material, so for now...
+BUILD_DIR := made/
+## BUILD_DIR := build/
+
+ifneq (, $(LANG_NAME))
+$(info "Make-shim-lang $(LANG_NAME)+++")
+	include $(MAKINGS_DIR)/../src/Make-shim-lang
+else
+$(info "Make-shim-runtime $(LANG_NAME)+++")
+	include $(MAKINGS_DIR)/../src/Make-shim-runtime
+endif
+# ifneq (, $(LANG_NAME))
+# 	include $(MAKINGS_DIR)/Make-shim-lang
+# else
+# 	include $(MAKINGS_DIR)/Make-shim-runtime
+# endif
+
+OBJ := $(addsuffix .o,$(basename $(SRC)))
+
+# choking on unused parameters, allow it for now
+# CFLAGS ?= -O3 -Wall -Wextra -Werror
+CFLAGS ?= -O3 -Wall -Wextra 
+override CFLAGS += -std=gnu99 -fPIC $(CFLAG_INCLUDES)
+# by this point we have set SRC,OBJ,CFLAGS,CXXFLAGS
+
+
+ifeq (, $(LANG_NAME))
+	# must have trailing slash if not empty
+	INCLUDE_SUBDIR := tree_sitter/
+endif
+
+
+#####  
+
+SHUNTLIB ?= /$(PROJ_NAME)
+SHUNTINCLUDE ?= /$(INCLUDE_NAME).$(VERS_FULL)
+
+# install directory layout
+PREFIX ?= /usr/local
+INCLUDEDIR ?= $(PREFIX)/include$(SHUNTINCLUDE)
+LIBDIR ?= $(PREFIX)/lib$(SHUNTLIB)
+PCLIBDIR ?= $(LIBDIR)/pkgconfig
+
+### runtime
+# 	SRC_C_BINDS := lib/include
+# # 	C_BINDS := $(wildcard $(SRC_C_BINDS)*.h)
+# 	C_BINDS := *.h
+# 	# tree_sitter/ in INCLUDE_SUBDIR bc we need to create it
+# ### lang
+# # 	SRC_C_BINDS := bindings/c
+# # BUILD_DIR will have trailing slash if not empty
+# 	SRC_C_BINDS := $(BUILD_DIR)
+# 	C_BINDS := $(INCLUDE_NAME).h
+# ifeq (, $(LANG_NAME))
+# 	# must have leading slash if not empty
+# 	INCLUDE_SUBDIR := /tree_sitter
+# endif
+
+
+
+
+# HEADERS = $(wildcard *.h) $(wildcard foo/*.h) $(wildcard bar/*.h)
+HEADERS = $(wildcard $(SRC_C_BINDS)$(INCLUDE_SUBDIR)*.h)
+
+INCDIR = ../include
+
+HFILES = $(notdir $(HEADERS))
+# make sort also uniqs
+DIRS = $(dir $(HEADERS))
+UNIQ_DIRS = $(sort $(dir $(HEADERS)))
+
+DEST_DIRS = $(INCLUDE_SUBDIR)
+
+TARGETS = $(addprefix $(INCDIR)/, $(HFILES))
+
+# all: $(TARGETS)
+# 
+# $(INCDIR)/%.h: %.h
+#   cp $< $@
+# 
+# vpath %.h $(DIRS)
+
+
 all: 
-	@echo "VERS_TAG: $(VERS_TAG)"
-	@echo "VERS_MAJ: $(VERS_MAJ)"
-	@echo "VERS_MIN: $(VERS_MIN)"
-	@echo "VERS_PATCH: $(VERS_PATCH)"
-	@echo "VERS_FULL: $(VERS_FULL)"
-# 	@echo $(NO_TAG)
-# 	ifeq (, $(VERS_TAG))
-# 		@echo "No VERS_TAG!!"
-# 	endif
+	@echo "SRC_C_BINDS: $(SRC_C_BINDS)"
+	@echo "INCLUDE_SUBDIR: $(INCLUDE_SUBDIR)"
+	@echo "headers: $(HEADERS)"
+	@echo "HFILES: $(HFILES)"
+	@echo "DIRS: $(DIRS)"
+	@echo "UNIQ_DIRS: $(UNIQ_DIRS)"
+	@echo "DEST_DIRS: $(DEST_DIRS)"
+	$(foreach subdir, $(DEST_DIRS), echo $(subdir))
+	@echo '$(DESTDIR)$(INCLUDEDIR)'/$(INCLUDE_SUBDIR)
+	@echo $(addprefix '$(DESTDIR)$(INCLUDEDIR)'/$(INCLUDE_SUBDIR), $(HFILES))
+# 	$(foreach h, $(HEADERS)
+# 	$(foreach subdir, $(DIRS), install -d $(subdir))
+# 	$(foreach h, $(HEADERS)
 
 
 
