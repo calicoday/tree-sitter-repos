@@ -32,7 +32,7 @@ class RepoRunner < Sunny
     @lang_core = {
       bash: "https://github.com/tree-sitter/tree-sitter-bash",
       c: "https://github.com/tree-sitter/tree-sitter-c",
-      csharp: "https://github.com/tree-sitter/tree-sitter-c-sharp",
+      c_sharp: "https://github.com/tree-sitter/tree-sitter-c-sharp",
       cpp: "https://github.com/tree-sitter/tree-sitter-cpp",
       javascript: "https://github.com/tree-sitter/tree-sitter-javascript",
       json: "https://github.com/tree-sitter/tree-sitter-json",
@@ -49,12 +49,16 @@ class RepoRunner < Sunny
     }
 
     cmd_list = {
+      "try" => "Try experimental Makefile for dev",
+      "noop" => "No-op for dev",
+      "clean_libs" => "Rm all built libs in repos",
       "clone_lang_core" =>
         "Git clone each of the core tree-sitter lang repos (curr only most recent version)",
       "clone_lang" => 
         "Git clone tree-sitter-lang repo versions (curr only most recent)",
 #       "clone_repo_by_tag" => "Git clone tree-sitter repo versions",
       "clone_runtime" => "Git clone tree-sitter repo versions",
+      "make_lang_core" => "Make each of the core tree-sitter lang repos (curr only most recent version)",
       "make_lang" => "Make tree-sitter-lang repo versions",
       "make_runtime" => "Make tree-sitter repo versions",
 #       "install_lang" => "install tree-sitter-lang libs in conventional sys dir",
@@ -77,6 +81,9 @@ class RepoRunner < Sunny
       opt(:install, "Install lib in the conventional sys dir")
       opt(:alias, "Create a symlink to the installed lib with the simple, non-versioned name")
       opt(:bindings, "(for make_lang) Install external header for lang")
+      
+      opt(:workdir, "Working directory for cloned/built repos", 
+        :default => 'repos/', :type => String)
 
       # input:
       opt(:tag_list, "(for make_runtime) Tags of runtime versions to process, separated by /,\s*/", 
@@ -107,9 +114,9 @@ class RepoRunner < Sunny
     # want these later!!!
     # runner testing
     cmdline = case cmd
-    when 'noop'
-      puts "Ok, exiting."
-      exit 0
+#     when 'noop'
+#       puts "Ok, exiting."
+#       exit 0
     when 'conf'
       return conf_nifty(g_opts, cmd, c_opts)
     end
@@ -125,14 +132,17 @@ class RepoRunner < Sunny
 # ruby src/repo_runner.rb -i -t "0.20.0" make_runtime
 
 # install_runtimes.rb
-  def make_runtime(repo, g_opts)
+  def make_runtime(repo_dir, g_opts)
     puts "RepoRunner make_runtime"
   #   relpath_to_makefile = '../../src/Makefile-runtime' ### langs from tree-sitter-lang/
-    relpath_to_makefile = '../../src/Makefile-runtime'
-    FileUtils.cd(repo)
+#     relpath_to_makefile = '../../src/Makefile-runtime'
+#     relpath_to_makefile = '../../src/Makefile'
+    relpath_to_makefile = '../../../src/Makefile' # one more for workdir!!!
+    FileUtils.cd(repo_dir)
     FileUtils.cd('tree-sitter')
     puts "in #{Dir.pwd}"
     call = 'make'
+#     call += ' -n'
     call += ' --debug' if g_opts.debug
     install = ' install' if g_opts.install
     install = ' install-and-symlink' if g_opts.alias
@@ -149,19 +159,43 @@ class RepoRunner < Sunny
 # ruby src/repo_runner.rb -a -i -l "rust" make_lang <- symlinks
 #   "bash, python, html, rust, wasm, markdown, typescript, cpp, c, ruby, embedded-template, javascript, sexp, make, json, c-sharp"
 
-  def make_lang(g_opts, repo_name, vers_tag=nil)
-#     vers_tag = most_recent(repo_name)
-#     return repo_name unless vers_tag
-#     repo_dir = "#{repo_name}-#{vers_tag}"
-
-    repo_dir, vers_tag = most_recent(repo_name)
-    return repo_name unless repo_dir
+  # make given specific repo_dir
+  def make_one_lib(g_opts, repo_dir, repo_name=nil)
+    repo_name = repo_dir.gsub(/\..*/, '') unless repo_name
     
+    puts
     puts "=== #{repo_dir}"
-    relpath_to_makefile = '../../src/Makefile'
+#     relpath_to_makefile = '../../../src/Makefile' # one more for workdir!!!
+    relpath_to_makefile = '../../../notes/Makefile-try'
     FileUtils.cd(repo_dir)
     FileUtils.cd(repo_name)
     call = 'make'
+    call += ' -n'
+#     call += ' --debug' # for verbose
+#     install = ' install' if g_opts.install
+#     install = ' install-and-symlink' if g_opts.alias
+#     call += install if install
+    call += " -f #{relpath_to_makefile}" #unless g_opts.own_makefile && byo_makefile
+    puts "  `#{call}`"
+    puts `#{call}`
+    FileUtils.cd('..')
+    FileUtils.cd('..')
+    nil # no news is good news    
+  end
+  
+  def make_lang(g_opts, repo_name, vers_tag=nil)
+    repo_dir, vers_tag = most_recent(repo_name)
+    return repo_name unless repo_dir
+    
+    puts
+    puts "=== #{repo_dir}"
+#     relpath_to_makefile = '../../src/Makefile'
+#     relpath_to_makefile = '../../src/Makefile'
+    relpath_to_makefile = '../../../src/Makefile' # one more for workdir!!!
+    FileUtils.cd(repo_dir)
+    FileUtils.cd(repo_name)
+    call = 'make'
+#     call += ' -n'
     call += ' --debug' # for verbose
     install = ' install' if g_opts.install
     install = ' install-and-symlink' if g_opts.alias
@@ -175,19 +209,19 @@ class RepoRunner < Sunny
   end
   
   def most_recent(repo_name)
-#     cand = Dir.children(Dir.pwd).select{|e| e =~ /^#{repo_name}\.\d+\.\d+\.\d+$/}
-#     cand = Dir.children(Dir.pwd).select{|e| e =~ /^#{repo_name}-\d+\.\d+\.\d+$/}
     cand = list_shunt_dirs(repo_name)
+    puts
+    puts "^^^ repo_name: #{repo_name}"
     return nil if cand.empty?
 #     best = cand.sort.last ### alpha sort!!!
-#     [best, best.split(/#{repo_name}-/).last]
     # numeric sort
-    best_vers = cand.map{|e| e.split(/^tree-sitter-/)}.map{|e| 
-      e[1].split('.').map(&:to_i)}.sort.last.join('.')
+    best_vers = 'untagged' if cand.length == 1 && cand[0] == "#{repo_name}.untagged"
+    best_vers = cand.map{|e| e.split(/^#{repo_name}\./)}.map{|e| 
+      e[1].split('.').map(&:to_i)}.sort.last.join('.') unless best_vers
     [shunt_dir(repo_name, best_vers), best_vers]
   end
   
-  def git_clone(vers_tag=nil)
+  def git_clone(repo_url, vers_tag=nil)
     vers_tag ?
       `git clone -b v#{vers_tag} --depth 1 #{repo_url}.git` :
       `git clone #{repo_url}.git`
@@ -197,23 +231,18 @@ class RepoRunner < Sunny
     repo_name, vers_tag = repo_name_and_vers_tag(repo_url)
     repo_dir = shunt_dir(repo_name, vers_tag)
     return repo_dir if Dir.exist?(repo_dir)
+
     FileUtils.mkdir_p(repo_dir)     
     FileUtils.cd(repo_dir)
     
-#     `git clone #{repo_url}.git`
-    git_clone
+    git_clone(repo_url)
     
-#     # collect last log entry for repo -- untested!!! FIXME!!!
-#     repo_name = repo_url.split('/').last
-#     FileUtils.cd(repo_name)
-#     log = `git log -1`
-
-    FileUtils.cd('..')
     FileUtils.cd('..')
     nil # no news is good news
   end
   
 
+  # ruby src/repo_runner.rb -t "0.20.0, 0.20.6, 0.20.7" clone_runtime
   def clone_runtime(vers_tag)
     org_name = "tree-sitter"
     repo_name = "tree-sitter"
@@ -224,57 +253,87 @@ class RepoRunner < Sunny
     FileUtils.mkdir_p(repo_dir)     
     FileUtils.cd(repo_dir)
     
-#     `git clone -b v#{vers_tag} --depth 1 #{repo_url}.git`
-    git_clone(vers_tag)
+    git_clone(repo_url, vers_tag)
 
     FileUtils.cd('..')
     nil # no news is good news
   end
 
-  # pull these out so hyphen/dot sep doesn't drift
+  # These are the only methods that construct/match the shunt name to control format!!!
   def list_shunt_dirs(repo_name)
-    cand = Dir.children(Dir.pwd).select{|e| e =~ /^#{repo_name}-\d+\.\d+\.\d+$/}
+    cand = Dir.children(Dir.pwd).select{|e| e =~ /^#{repo_name}\.\d+\.\d+\.\d+$/ ||
+      e =~ /^#{repo_name}\.untagged/}
+    ### TMP!!! to try curr lang ### nope, hack the dir name!!!
+#     cand = Dir.children(Dir.pwd).select{|e| e =~ /^#{repo_name}-\d+\.\d+\.\d+$/}
   end
   def shunt_dir(repo_name, vers_tag)
-    vers_tag = 'untagged' if vers_tag.empty?
-    "#{repo_name}-#{vers_tag}"
-#     "#{repo_name}.#{vers_tag}"
+#     vers_tag = 'untagged' if vers_tag.empty?
+    vers_tag = 'untagged' unless vers_tag && vers_tag != 'untagged'
+    "#{repo_name}.#{vers_tag}"
+#     "#{repo_name}-#{vers_tag}"
   end
   
-  ### now with commit!!!
-  def shunt_tag(repo_url)
+  
+  # works for any but untagged haven't got anything else
+  def git_untagged_head(repo_url)
+    `git ls-remote #{repo_url} HEAD`.chomp
+  end
+  
+  ### commit unused so far, poss for active?() ???
+  def git_last_tag_and_commit(repo_url) # hash length option???
     last_tag = `git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' \
-      #{repo_url} | tail -n1`
+      #{repo_url} | tail -n1`.chomp
     # for ref, using sed with basic REs not extended
 #     commit = (last_tag.empty? ?
 #       `git ls-remote #{repo_url} HEAD | sed -e "s/\(.......\).*/\1/"` :
 #       `echo #{last_tag} | sed -e "s/\(.......\).*/\1/"`
     commit = (last_tag.empty? ? 
-      `git ls-remote #{repo_url} HEAD` : last_tag).gsub(/^(.......).*/, '\1') :
-    last_tag = 'untagged' if last_tag.empty?
-    "#{last_tag}-#{commit}"    
+      git_untagged_head(repo_url) : last_tag).gsub(/^(.......).*/, '\1')
+    last_tag = nil if last_tag.empty?
+    [last_tag, commit]
   end
   
-  def git_latest_tag(repo_url)
-    `git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' #{repo_url} | tail -n1 | cut -d/ -f3` # => "0.20.3\n"
-  end
-  
+  # only used by clone_lang
   def repo_name_and_vers_tag(repo_url)
     repo_name = File.basename(repo_url)
-#     tag = `git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' #{repo_url} | tail -n1 | cut -d/ -f3` # => "0.20.3\n"
-    tag = git_latest_tag(repo_url)
+
+    tag, _ = git_last_tag_and_commit(repo_url)
     
     # assume the first \d+\.\d+\.\d+ is the vers tag we want
-    vers_tag = tag.chomp.gsub(/^[^\d]*(\d+)\.(\d+)\.(\d+).*/,'\1.\2.\3')
+    vers_tag = (tag ? 
+      tag.split(/\t+/).last.gsub(/^[^\d]*(\d+)\.(\d+)\.(\d+).*/,'\1.\2.\3') : 
+      nil)
     [repo_name, vers_tag]
   end
   
-    
+# ruby src/repo_runner.rb -i -l "rust" make_lang
+# ruby src/repo_runner.rb -i -t "0.20.0" make_runtime
+
   def do_the_thing(g_opts, cmd, c_opts)
     puts `date`
     puts '+=+=+=+=+'
+    puts "workdir: #{g_opts.workdir}+++"
+    # DOES NOT prevent womping anything in workdir/
+    FileUtils.mkdir_p(g_opts.workdir)
+    FileUtils.cd(g_opts.workdir)
     puts "RepoRunner cmd: #{cmd.inspect}, g_opts: #{g_opts.inspect}"
     cmdline = case cmd
+    when 'try'
+      puts "try: moving to ../ztmp..."
+      FileUtils.cd('../ztmp')
+      runtime_repo = 'tree-sitter.0.20.0'
+      make_one_lib(g_opts, runtime_repo)
+      lang_repo = 'tree-sitter-bash.0.19.0'
+      make_one_lib(g_opts, lang_repo)
+      
+    when 'clean_libs'
+      Dir.children(Dir.pwd).each do |repo|
+        puts "clean_libs #{repo}"
+        puts `rm #{repo}/*/*.a #{repo}/*/*.dylib`
+        # and generated .h, .pc if any
+        proj_name = repo.gsub(/\..*/, '').tr('-', '_')
+        puts `rm #{repo}/*/#{proj_name}.h #{repo}/*/#{proj_name}.pc`
+      end
     when 'make_lang' 
       g_opts.lang_list.split(/,\s*/).each do |lang_repo| 
         repo = lang_repo.gsub(/^tree-sitter-/, '').gsub(/^/, 'tree-sitter-')
@@ -283,7 +342,7 @@ class RepoRunner < Sunny
       end
     when 'make_runtime' 
       g_opts.tag_list.split(/,\s*/).each do |vers_tag| 
-        make_runtime("tree-sitter-v#{vers_tag}", g_opts)
+        make_runtime("tree-sitter.#{vers_tag}", g_opts)
       end
     when 'clone_lang'
       g_opts.lang_list.split(/,\s*/).each do |lang_repo|
@@ -300,7 +359,17 @@ class RepoRunner < Sunny
         repo_dir = clone_lang(lang_repo)
         puts "#{repo_dir} exists. Skipped." if repo_dir
       end
+    when 'make_lang_core' 
+      lang_core.keys.each do |lang_repo|
+#       g_opts.lang_list.split(/,\s*/).each do |lang_repo| 
+        repo = lang_repo.to_s.tr('_', '-').gsub(/^tree-sitter-/, '').gsub(/^/, 'tree-sitter-')
+        repo_name = make_lang(g_opts, repo)
+        puts "Couldn't find vers_tag for #{repo_name}" if repo_name
+      end
+    when 'noop'
+      puts "Ok, doing nothing."
     end
+    FileUtils.cd('..')
     puts "done."
   end
 

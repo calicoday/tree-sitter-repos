@@ -1,0 +1,13 @@
+221203s-0921
+
+- relate tree-sitter-repos to adding makings to tree-sitter, pass MAKINGS_DIR???
+- version_roster.json
+- clarify clone/make_lang when they ARE versioned, also active???
+- README
+
+readme tidbits:
+- if /usr/local/lib, include (or equiv) don't exist, likely need sudo to create and I don't know how to prompt that from the Makefile (fails silently, I think)
+
+
+Like the other one, it's in a scrappier state than I'd like for a release but it's taken a hard couple of months and I've lost perspective on 'ready enough'. Fixes are ongoing, in any case.
+

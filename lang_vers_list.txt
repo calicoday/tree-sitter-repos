@@ -1,0 +1,20 @@
+grep -R '#define LANGUAGE_VERSION' repos/tree-sitter-*/**/parser* > lang_vers_list.txt
+
+repos/tree-sitter-bash.0.19.0/tree-sitter-bash/src/parser.c:#define LANGUAGE_VERSION 14
+repos/tree-sitter-c-sharp.0.20.0/tree-sitter-c-sharp/src/parser.c:#define LANGUAGE_VERSION 13
+repos/tree-sitter-c.0.20.2/tree-sitter-c/src/parser.c:#define LANGUAGE_VERSION 13
+repos/tree-sitter-cpp.0.20.0/tree-sitter-cpp/src/parser.c:#define LANGUAGE_VERSION 14
+repos/tree-sitter-embedded-template.0.20.0/tree-sitter-embedded-template/src/parser.c:#define LANGUAGE_VERSION 14
+repos/tree-sitter-html.0.19.0/tree-sitter-html/src/parser.c:#define LANGUAGE_VERSION 13
+repos/tree-sitter-javascript.0.19.0/tree-sitter-javascript/src/parser.c:#define LANGUAGE_VERSION 14
+repos/tree-sitter-json.0.19.0/tree-sitter-json/src/parser.c:#define LANGUAGE_VERSION 13
+repos/tree-sitter-make.untagged/tree-sitter-make/src/parser.c:#define LANGUAGE_VERSION 13
+repos/tree-sitter-markdown.0.7.1/tree-sitter-markdown/src/parser.c:#define LANGUAGE_VERSION 13
+repos/tree-sitter-python.0.20.0/tree-sitter-python/src/parser.c:#define LANGUAGE_VERSION 14
+repos/tree-sitter-ruby.0.19.0/tree-sitter-ruby/src/parser.c:#define LANGUAGE_VERSION 13
+repos/tree-sitter-rust.0.20.3/tree-sitter-rust/src/parser.c:#define LANGUAGE_VERSION 14
+repos/tree-sitter-sexp.untagged/tree-sitter-sexp/src/parser.c:#define LANGUAGE_VERSION 12
+repos/tree-sitter-typescript.0.20.1/tree-sitter-typescript/tsx/src/parser.c:#define LANGUAGE_VERSION 14
+repos/tree-sitter-typescript.0.20.1/tree-sitter-typescript/typescript/src/parser.c:#define LANGUAGE_VERSION 14
+repos/tree-sitter-wasm.untagged/tree-sitter-wasm/wast/src/parser.c:#define LANGUAGE_VERSION 13
+repos/tree-sitter-wasm.untagged/tree-sitter-wasm/wat/src/parser.c:#define LANGUAGE_VERSION 13

@@ -1,0 +1,12 @@
+repos/tree-sitter.0.20.0/tree-sitter/lib/include/tree_sitter/api.h:#define TREE_SITTER_LANGUAGE_VERSION 13
+repos/tree-sitter.0.20.0/tree-sitter/lib/include/tree_sitter/api.h:#define TREE_SITTER_MIN_COMPATIBLE_LANGUAGE_VERSION 13
+repos/tree-sitter.0.20.0/tree-sitter/lib/include/tree_sitter/api.h: * and compare it to this library's `TREE_SITTER_LANGUAGE_VERSION` and
+repos/tree-sitter.0.20.0/tree-sitter/lib/include/tree_sitter/api.h: * `TREE_SITTER_MIN_COMPATIBLE_LANGUAGE_VERSION` constants.
+repos/tree-sitter.0.20.6/tree-sitter/lib/include/tree_sitter/api.h:#define TREE_SITTER_LANGUAGE_VERSION 14
+repos/tree-sitter.0.20.6/tree-sitter/lib/include/tree_sitter/api.h:#define TREE_SITTER_MIN_COMPATIBLE_LANGUAGE_VERSION 13
+repos/tree-sitter.0.20.6/tree-sitter/lib/include/tree_sitter/api.h: * and compare it to this library's `TREE_SITTER_LANGUAGE_VERSION` and
+repos/tree-sitter.0.20.6/tree-sitter/lib/include/tree_sitter/api.h: * `TREE_SITTER_MIN_COMPATIBLE_LANGUAGE_VERSION` constants.
+repos/tree-sitter.0.20.7/tree-sitter/lib/include/tree_sitter/api.h:#define TREE_SITTER_LANGUAGE_VERSION 14
+repos/tree-sitter.0.20.7/tree-sitter/lib/include/tree_sitter/api.h:#define TREE_SITTER_MIN_COMPATIBLE_LANGUAGE_VERSION 13
+repos/tree-sitter.0.20.7/tree-sitter/lib/include/tree_sitter/api.h: * and compare it to this library's `TREE_SITTER_LANGUAGE_VERSION` and
+repos/tree-sitter.0.20.7/tree-sitter/lib/include/tree_sitter/api.h: * `TREE_SITTER_MIN_COMPATIBLE_LANGUAGE_VERSION` constants.

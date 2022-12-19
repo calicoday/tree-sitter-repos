@@ -1,0 +1,8 @@
+221219m-1105
+
+- untagged..
+- -snap for langs
+- query github for latest tag/commit info
+- list *LANGUAGE_VERSION for langs, runtimes
+- mv Make stuff to Makings/
+

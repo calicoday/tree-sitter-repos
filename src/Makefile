@@ -291,7 +291,6 @@ install: all \
 
 
 install-and-symlink: install
-	@echo "$$$ install-and-symlink"
 	install -d '$(DESTDIR)$(LIBDIR)'
 	ln -sf $(LIB_NAME).$(VERS_FULL).a '$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).a
 	ln -sf $(LIB_NAME).$(SOEXT_FULL) '$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(SOEXT_MAJMIN)
