@@ -63,6 +63,7 @@ class RepoRunner < Sunny
       "make_runtime" => "Make tree-sitter repo versions",
 #       "install_lang" => "install tree-sitter-lang libs in conventional sys dir",
 #       "install_runtime" => "install tree-sitter libs in conventional sys dir",
+      "list_lang_repos" => "Show the language repos listed in tree-sitter.github.io Introduction",
       }
     # vet cmd_list for matching method, if we're going to blindly redirect!!!
     cmd_opts = Proc.new {|cmd|
@@ -273,6 +274,12 @@ class RepoRunner < Sunny
 #     "#{repo_name}-#{vers_tag}"
   end
   
+  def git_last_commit_and_tag_or_head(repo_url)
+    commit, last_tag = `git -c 'versionsort.suffix=-' ls-remote --tags \
+      --sort='v:refname'  #{repo_url} | tail -n1`.chomp.split("\t")
+    commit, last_tag = `git ls-remote #{repo_url} HEAD`.chomp.split("\t") unless commit
+    [commit, last_tag]
+  end
   
   # works for any but untagged haven't got anything else
   def git_untagged_head(repo_url)
@@ -304,6 +311,56 @@ class RepoRunner < Sunny
       tag.split(/\t+/).last.gsub(/^[^\d]*(\d+)\.(\d+)\.(\d+).*/,'\1.\2.\3') : 
       nil)
     [repo_name, vers_tag]
+  end
+  
+  
+    require 'open-uri'
+  def lang_entry(s)
+    s.gsub(/^[^\[]*\[([^\]]*)\].*(http[^\)]*)\).*/, '\2: \1')
+#     s.gsub(/^[^\[]*\[([^\]]*)\].*(tree-sitter-[^\)]*)\).*/, '\2: \1')
+  end
+  def gather_langs(chunk)
+    chunk.split("\n").
+      map{|e| lang_entry(e)}.
+      map{|e| e.split(': ')}.
+      reject{|e| e.length != 2}.to_h
+  end
+  def lang_deets(url, descr)
+    # Erlang url has trailing '/' in tree-sitter.github.io src index.md
+    url = url.gsub(/\/$/, '')
+    lang = url.gsub(/.*tree-sitter-(.*)/, '\1')
+    commit, last_tag = git_last_commit_and_tag_or_head(url)
+    vers = (last_tag == 'HEAD' ?
+      'untagged' :
+      last_tag.gsub(/.*(\d+\.\d+\.\d+).*$/, '\1'))
+    [lang.gsub(/-/, '_').to_sym,  
+      {descr: descr, url: url, vers: vers, last_tag: last_tag, commit: commit}]
+  end
+  def list_lang_repos()
+    s = open('https://raw.githubusercontent.com/tree-sitter/' + 
+      'tree-sitter/master/docs/index.md').read
+    seps = ['Parsers for these languages are fairly complete:',
+      'Parsers for these languages are in development:',
+      'Talks on Tree-sitter']
+    chunks = s.split(/(#{seps.join('|')})/)
+    fairly_complete = gather_langs(chunks[2])
+    puts 'Parsers for these #{fairly_complete.length} languages are fairly complete:'
+    got = fairly_complete.map do |k, v|
+      puts "checking #{k}"
+      lang_deets(k, v)
+    end.to_h
+    ap got
+    
+    puts
+    in_development = gather_langs(chunks[4])
+    puts 'Parsers for these #{in_development.length} languages are in development:'
+    got = in_development.map do |k, v|
+      puts "checking #{k}"
+      lang_deets(k, v)
+    end.to_h
+    ap got
+#     puts in_development.map{|e| e.join(': ')}.join("\n")
+    puts
   end
   
 # ruby src/repo_runner.rb -i -l "rust" make_lang
@@ -366,6 +423,8 @@ class RepoRunner < Sunny
         repo_name = make_lang(g_opts, repo)
         puts "Couldn't find vers_tag for #{repo_name}" if repo_name
       end
+    when 'list_lang_repos'
+      list_lang_repos
     when 'noop'
       puts "Ok, doing nothing."
     end

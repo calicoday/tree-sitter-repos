@@ -79,6 +79,7 @@ class RepoRunner < Sunny
       opt(:help)
       
       opt(:debug, "Pass --debug option to make for verbose output")
+      opt(:noop, "Pass --noop option to make for dry run")
       opt(:install, "Install lib in the conventional sys dir")
       opt(:alias, "Create a symlink to the installed lib with the simple, non-versioned name")
       opt(:bindings, "(for make_lang) Install external header for lang")
@@ -125,33 +126,53 @@ class RepoRunner < Sunny
     do_the_thing(g_opts, cmd, c_opts)
   end
 
-  def byo_makefile
-    Dir.children(Dir.pwd).map(&:upcase).include?('MAKEFILE')
-  end
 
 # run --tag_list not --lang_list!!! shd these be one name???
 # ruby src/repo_runner.rb -i -t "0.20.0" make_runtime
 
 # install_runtimes.rb
   def make_runtime(repo_dir, g_opts)
-    puts "RepoRunner make_runtime"
-  #   relpath_to_makefile = '../../src/Makefile-runtime' ### langs from tree-sitter-lang/
-#     relpath_to_makefile = '../../src/Makefile-runtime'
-#     relpath_to_makefile = '../../src/Makefile'
-    relpath_to_makefile = '../../../src/Makefile' # one more for workdir!!!
+    puts "RepoRunner make_runtime #{repo_dir}"
+#     FileUtils.cd(repo_dir)
+#     FileUtils.cd('tree-sitter')
+#     puts "in #{Dir.pwd}"
+    make_lib(g_opts, repo_dir, 'tree-sitter')
+#     call = 'make'
+# #     call += ' -n'
+#     call += ' --debug' if g_opts.debug
+#     install = ' install' if g_opts.install
+#     install = ' install-and-symlink' if g_opts.alias
+#     call += install if install
+#     call += " -f #{relpath_to_makefile}" #unless g_opts.own_makefile && byo_makefile
+#     puts "  `#{call}`" # prompt
+#     puts `#{call}`
+#     FileUtils.cd('../..')
+  end
+
+  # make given specific repo_dir
+  def make_lib(g_opts, repo_dir, repo_name=nil)
+    # if no repo_name, use repo_dir up to the vers
+    puts "repo_dir: #{repo_dir}, repo_name: #{repo_name}"
+    repo_name = repo_dir.gsub(/\..*/, '') unless repo_name
+    puts "  repo_name: #{repo_name}"
+    relpath_to_makefile = '../../../makings/Makefile' # one more for workdir!!!
+    
+    puts
+    puts "=== #{repo_dir}"
     FileUtils.cd(repo_dir)
-    FileUtils.cd('tree-sitter')
-    puts "in #{Dir.pwd}"
+    FileUtils.cd(repo_name)
     call = 'make'
-#     call += ' -n'
+    call += ' -n' if g_opts.noop
     call += ' --debug' if g_opts.debug
     install = ' install' if g_opts.install
     install = ' install-and-symlink' if g_opts.alias
     call += install if install
-    call += " -f #{relpath_to_makefile}" unless g_opts.own_makefile && byo_makefile
-    puts "  `#{call}`" # prompt
+    call += " -f #{relpath_to_makefile}"
+    puts "  `#{call}`"
     puts `#{call}`
-    FileUtils.cd('../..')
+    FileUtils.cd('..')
+    FileUtils.cd('..')
+    nil # no news is good news    
   end
 
 
@@ -160,53 +181,33 @@ class RepoRunner < Sunny
 # ruby src/repo_runner.rb -a -i -l "rust" make_lang <- symlinks
 #   "bash, python, html, rust, wasm, markdown, typescript, cpp, c, ruby, embedded-template, javascript, sexp, make, json, c-sharp"
 
-  # make given specific repo_dir
-  def make_one_lib(g_opts, repo_dir, repo_name=nil)
-    repo_name = repo_dir.gsub(/\..*/, '') unless repo_name
+  def make_lang(g_opts, repo_name, vers_tag=nil)
+    repo_dir, vers_tag = most_recent(repo_name)
+    return repo_name unless repo_dir
+
+    make_lib(g_opts, repo_dir)
     
-    puts
-    puts "=== #{repo_dir}"
+#     relpath_to_makefile = '../../../makings/Makefile' # one more for workdir!!!
+#     
+#     puts
+#     puts "=== #{repo_dir}"
+# #     relpath_to_makefile = '../../src/Makefile'
+# #     relpath_to_makefile = '../../src/Makefile'
 #     relpath_to_makefile = '../../../src/Makefile' # one more for workdir!!!
-    relpath_to_makefile = '../../../notes/Makefile-try'
-    FileUtils.cd(repo_dir)
-    FileUtils.cd(repo_name)
-    call = 'make'
-    call += ' -n'
+#     FileUtils.cd(repo_dir)
+#     FileUtils.cd(repo_name)
+#     call = 'make'
+# #     call += ' -n'
 #     call += ' --debug' # for verbose
 #     install = ' install' if g_opts.install
 #     install = ' install-and-symlink' if g_opts.alias
 #     call += install if install
-    call += " -f #{relpath_to_makefile}" #unless g_opts.own_makefile && byo_makefile
-    puts "  `#{call}`"
-    puts `#{call}`
-    FileUtils.cd('..')
-    FileUtils.cd('..')
-    nil # no news is good news    
-  end
-  
-  def make_lang(g_opts, repo_name, vers_tag=nil)
-    repo_dir, vers_tag = most_recent(repo_name)
-    return repo_name unless repo_dir
-    
-    puts
-    puts "=== #{repo_dir}"
-#     relpath_to_makefile = '../../src/Makefile'
-#     relpath_to_makefile = '../../src/Makefile'
-    relpath_to_makefile = '../../../src/Makefile' # one more for workdir!!!
-    FileUtils.cd(repo_dir)
-    FileUtils.cd(repo_name)
-    call = 'make'
-#     call += ' -n'
-    call += ' --debug' # for verbose
-    install = ' install' if g_opts.install
-    install = ' install-and-symlink' if g_opts.alias
-    call += install if install
-    call += " -f #{relpath_to_makefile}" unless g_opts.own_makefile && byo_makefile
-    puts "  `#{call}`"
-    puts `#{call}`
-    FileUtils.cd('..')
-    FileUtils.cd('..')
-    nil # no news is good news
+#     call += " -f #{relpath_to_makefile}" 
+#     puts "  `#{call}`"
+#     puts `#{call}`
+#     FileUtils.cd('..')
+#     FileUtils.cd('..')
+#     nil # no news is good news
   end
   
   def most_recent(repo_name)
@@ -363,7 +364,7 @@ class RepoRunner < Sunny
     puts
   end
   
-# ruby src/repo_runner.rb -i -l "rust" make_lang
+# ruby src/repo_runner.rb -i -l "bash" make_lang
 # ruby src/repo_runner.rb -i -t "0.20.0" make_runtime
 
   def do_the_thing(g_opts, cmd, c_opts)

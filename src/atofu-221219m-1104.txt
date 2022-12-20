@@ -4,5 +4,5 @@
 - -snap for langs
 - query github for latest tag/commit info
 - list *LANGUAGE_VERSION for langs, runtimes
-- mv Make stuff to Makings/
+- mv Make scripts to Makings/
 
