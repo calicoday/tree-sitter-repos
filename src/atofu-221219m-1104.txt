@@ -1,8 +1,15 @@
 221219m-1105
 
-- untagged..
+x- untagged..
 - -snap for langs
-- query github for latest tag/commit info
+x- query github for latest tag/commit info, x langs, - runtimes
 - list *LANGUAGE_VERSION for langs, runtimes
-- mv Make scripts to Makings/
+x- mv Make scripts to Makings/
+- fix or list langs with weird dir structures
 
+
+note:
+- no way currently to make with specific commit already cloned, .: no snapshot support
+- repos that are tagged are cloned headless -- generally, this isn't meant for versions/forks in dev
+- currently, langs only pull the latest tag or HEAD (snap)
+- to determine which langs have what src/ structure, we need to download all and make a list one time

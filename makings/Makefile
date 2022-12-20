@@ -100,9 +100,6 @@ ifeq (, $(LANG_NAME))
 endif
 
 
-# I very much prefer compiling to a build/ (or other) subdir but, frankly,
-# I'm tired and I don't want to have to test this whole thing again just now.
-
 # Tidbits:
 # - a symlink named with the short version, major.minor instead of major.minor.patch, 
 #   seems a common choice but is it actually useful for this proj?
@@ -231,6 +228,7 @@ $(BUILD_DIR)$(LIB_NAME).$(SOEXT_FULL): $(OBJ)
 	$(CC) $(LDFLAGS) $(LINKSHARED) $^ $(LDLIBS) -o $@
 	ln -sf $@ $(BUILD_DIR)$(LIB_NAME).$(SOEXT)
 ifneq (untagged, $(VERS_FULL))
+		# extra symlinks for lib that is not untagged
 		ln -sf $@ $(BUILD_DIR)$(LIB_NAME).$(SOEXT_MAJ)
 		ln -sf $@ $(BUILD_DIR)$(LIB_NAME).$(SOEXT_MAJMIN)
 endif
@@ -301,6 +299,7 @@ install-and-symlink: install
 	install -d '$(DESTDIR)$(LIBDIR)'
 	ln -sf $(LIB_NAME).$(VERS_FULL).a '$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).a
 ifneq (untagged, $(VERS_FULL))
+		# extra symlinks for lib that is not untagged
 		ln -sf $(LIB_NAME).$(SOEXT_FULL) '$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(SOEXT_MAJMIN)
 		ln -sf $(LIB_NAME).$(SOEXT_FULL) '$(DESTDIR)$(LIBDIR)'/$(LIB_NAME).$(SOEXT_MAJ)
 endif

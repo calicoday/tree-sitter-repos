@@ -10,10 +10,6 @@ GemToBe.load(:optimist) # FILE needs to be loaded before sunny but loadpath does
 
 require "lab/sunny.rb"
 
-# for list_lang_repos to scrape tree-sitter.github.io source file index.md for langs
-require 'open-uri'
-
-# for lang_repos.json and repos.json
 require 'json'
 
 
@@ -192,11 +188,26 @@ class RepoRunner < Sunny
     [shunt_dir(repo_name, best_vers), best_vers]
   end
   
-#   def git_clone(repo_url, vers_tag)
   def git_clone(repo_url, vers_tag=nil)
     vers_tag ?
       `git clone -b v#{vers_tag} --depth 1 #{repo_url}.git` :
       `git clone #{repo_url}.git`
+  end
+  
+  def clone_lang(repo_url)    
+    repo_name, vers_tag = repo_name_and_vers_tag(repo_url)
+#     clone_repo(repo_url, repo_name, vers_tag)
+    
+    repo_dir = shunt_dir(repo_name, vers_tag)
+    return repo_dir if Dir.exist?(repo_dir)
+
+    FileUtils.mkdir_p(repo_dir)     
+    FileUtils.cd(repo_dir)
+    
+    git_clone(repo_url)
+    
+    FileUtils.cd('..')
+    nil # no news is good news
   end
   
   def  clone_repo(repo_url, repo_name, vers_tag)
@@ -212,29 +223,38 @@ class RepoRunner < Sunny
     nil # no news is good news
   end
   
-  def clone_lang(repo_url)    
-    repo_name, vers_tag = repo_name_and_vers_tag(repo_url)
-    clone_repo(repo_url, repo_name, vers_tag)
-  end
-  
+
   # ruby src/repo_runner.rb -t "0.20.0, 0.20.6, 0.20.7" clone_runtime
   def clone_runtime(vers_tag)
     org_name = "tree-sitter"
     repo_name = "tree-sitter"
     repo_url = "http://github.com/#{org_name}/#{repo_name}"
-    clone_repo(repo_url, repo_name, vers_tag)
+#     clone_repo(repo_url, repo_name, vers_tag)
+
+    repo_dir = shunt_dir(repo_name, vers_tag)
+    return repo_dir if Dir.exist?(repo_dir)
+    
+    FileUtils.mkdir_p(repo_dir)     
+    FileUtils.cd(repo_dir)
+    
+    git_clone(repo_url, vers_tag)
+
+    FileUtils.cd('..')
+    nil # no news is good news
   end
 
-  # These two are the only methods that know the shunt name format for contruct/match
+  # These are the only methods that construct/match the shunt name to control format!!!
   def list_shunt_dirs(repo_name)
-#     cand = Dir.children(Dir.pwd).select{|e| 
-#       e =~ /^#{repo_name}(\.\d+\.\d+\.\d+|\.untagged)$/}
     cand = Dir.children(Dir.pwd).select{|e| e =~ /^#{repo_name}\.\d+\.\d+\.\d+$/ ||
       e =~ /^#{repo_name}\.untagged/}
+    ### TMP!!! to try curr lang ### nope, hack the dir name!!!
+#     cand = Dir.children(Dir.pwd).select{|e| e =~ /^#{repo_name}-\d+\.\d+\.\d+$/}
   end
   def shunt_dir(repo_name, vers_tag)
+#     vers_tag = 'untagged' if vers_tag.empty?
     vers_tag = 'untagged' unless vers_tag && vers_tag != 'untagged'
     "#{repo_name}.#{vers_tag}"
+#     "#{repo_name}-#{vers_tag}"
   end
   
   def git_last_commit_and_tag_or_head(repo_url)
@@ -283,8 +303,10 @@ class RepoRunner < Sunny
   end
   
   
+    require 'open-uri'
   def lang_entry(s)
     s.gsub(/^[^\[]*\[([^\]]*)\].*(http[^\)]*)\).*/, '\2: \1')
+#     s.gsub(/^[^\[]*\[([^\]]*)\].*(tree-sitter-[^\)]*)\).*/, '\2: \1')
   end
   def gather_langs(chunk)
     chunk.split("\n").
@@ -292,7 +314,7 @@ class RepoRunner < Sunny
       map{|e| e.split(': ')}.
       reject{|e| e.length != 2}.to_h
   end
-  def lang_deets(url, descr, status)
+  def lang_deets(url, descr)
     # Erlang url has trailing '/' in tree-sitter.github.io src index.md
     url = url.gsub(/\/$/, '')
     lang = url.gsub(/.*tree-sitter-(.*)/, '\1')
@@ -300,68 +322,34 @@ class RepoRunner < Sunny
     vers = (last_tag == 'HEAD' ?
       'untagged' :
       last_tag.gsub(/.*(\d+\.\d+\.\d+).*$/, '\1'))
-    # reveal lang repos that are not structured src/parser.c -- nope leave to clone!!!
-#     parsers = 
     [lang.gsub(/-/, '_').to_sym,  
-      {descr: descr, url: url, vers: vers, last_tag: last_tag, commit: commit, 
-      status: status}]
+      {descr: descr, url: url, vers: vers, last_tag: last_tag, commit: commit}]
   end
   def list_lang_repos()
-    if File.exist?('src/lang_repos_keep.json')
-      puts "src/lang_repos_keep.json exists. Exiting."
-      exit(1)
-    end
-    FileUtils.mv('src/lang_repos.json', 
-      'src/lang_repos_keep.json') if File.exist?('src/lang_repos.json')
-  
     s = open('https://raw.githubusercontent.com/tree-sitter/' + 
       'tree-sitter/master/docs/index.md').read
     seps = ['Parsers for these languages are fairly complete:',
       'Parsers for these languages are in development:',
       'Talks on Tree-sitter']
     chunks = s.split(/(#{seps.join('|')})/)
+    fairly_complete = gather_langs(chunks[2])
+    puts 'Parsers for these #{fairly_complete.length} languages are fairly complete:'
+    got = fairly_complete.map do |k, v|
+      puts "checking #{k}"
+      lang_deets(k, v)
+    end.to_h
+    ap got
     
-    info = {fairly_complete: chunks[2], in_development: chunks[4]}.map do |status, chunk|
-      lang_list = gather_langs(chunk)
-#       ap lang_list
-      puts "#{lang_list.length} #{status} parsers:"
-      lang_list.map.with_index do |e, i|
-        k, v = e
-        puts "  #{i} checking #{k}"
-        lang_deets(k, v, status)
-#         ap deets
-#         deets
-      end
-#       puts "=== mwi"
-#       ap mwi
-#       mwi
-    end.flatten(1).to_h
-#     info = info.flatten(1) #.to_h
-#     ap info
-#     puts
-#     ap info
-#     
-    # note: we're in repos/ bc cd!!!
-    File.write('src/lang_repos.json', JSON.pretty_generate(info))
-    
-#     fairly_complete = gather_langs(chunks[2])
-#     puts 'Parsers for these #{fairly_complete.length} languages are fairly complete:'
-#     got = fairly_complete.map do |k, v|
-#       puts "checking #{k}"
-#       lang_deets(k, v)
-#     end.to_h
-#     ap got
-#     
-#     puts
-#     in_development = gather_langs(chunks[4])
-#     puts 'Parsers for these #{in_development.length} languages are in development:'
-#     got = in_development.map do |k, v|
-#       puts "checking #{k}"
-#       lang_deets(k, v)
-#     end.to_h
-#     ap got
+    puts
+    in_development = gather_langs(chunks[4])
+    puts 'Parsers for these #{in_development.length} languages are in development:'
+    got = in_development.map do |k, v|
+      puts "checking #{k}"
+      lang_deets(k, v)
+    end.to_h
+    ap got
 #     puts in_development.map{|e| e.join(': ')}.join("\n")
-#     puts
+    puts
   end
   
 # ruby src/repo_runner.rb -i -l "bash" make_lang
@@ -370,13 +358,6 @@ class RepoRunner < Sunny
   def do_the_thing(g_opts, cmd, c_opts)
     puts `date`
     puts '+=+=+=+=+'
-    
-    # Do any cmd that DOESN'T need to be run in workdir/ and return
-    case cmd
-    when 'list_lang_repos'
-      return list_lang_repos
-    end
-    
     puts "workdir: #{g_opts.workdir}+++"
     # DOES NOT prevent womping anything in workdir/
     FileUtils.mkdir_p(g_opts.workdir)
@@ -431,6 +412,8 @@ class RepoRunner < Sunny
         repo_name = make_lang(g_opts, repo)
         puts "Couldn't find vers_tag for #{repo_name}" if repo_name
       end
+    when 'list_lang_repos'
+      list_lang_repos
     when 'noop'
       puts "Ok, doing nothing."
     end

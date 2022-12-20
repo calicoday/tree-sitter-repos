@@ -1,7 +1,6 @@
 require 'open-uri'
 require 'awesome_print'
 
-
 def lang_entry(s)
   s.gsub(/^[^\[]*\[([^\]]*)\].*(tree-sitter-[^\)]*)\).*/, '\2: \1')
 end
