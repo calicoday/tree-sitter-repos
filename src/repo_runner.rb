@@ -56,6 +56,7 @@ class RepoRunner < Sunny
       "try" => "Try experimental Makefile for dev",
       "noop" => "No-op for dev",
       "clone" => "Clone runtime/lang repos",
+      "make" => "Make runtime/lang repos",
       "clean_libs" => "Rm all built libs in repos",
       "clone_lang_core" =>
         "Git clone each of the core tree-sitter lang repos (curr only most recent version)",
@@ -93,14 +94,16 @@ class RepoRunner < Sunny
         :default => 'repos/', :type => String)
 
       # input:
-      opt(:tag_list, "(for make_runtime) Tags of runtime versions to process, separated by /,\s*/", 
+      opt(:tag_list, "(clone or make) Tags of runtime versions to process, separated by /,\s*/", 
         :default => '', :type => String)
-      opt(:lang_list, "(for make_lang) Names of lang repos to process, separated by /,\s*/ (accepts 'tree-sitter-lang' or just 'lang')", 
+      opt(:lang_list, "(clone or make) Short names of lang repos to process, separated by /,\s*/ (ie just 'lang' for 'tree-sitter-lang'). For clone, requires --json lang info file with a matching entry for each", 
         :default => '', :type => String)
       # eg "0.20.0, 0.20.6, 0.20.7"
+      opt(:repo_dirs, "(make) Versioned repo dirs, separated by /,\s*/", 
+        :default => '', :type => String)
       
       opt(:json, "JSON file with a list of repos and versions to clone or make",
-        :type => String)
+        :default => '', :type => String)
 
 #       opt(:file_for_make, "Use the specified Makefile (relative to repo dir)",
 #         :type => String)
@@ -160,6 +163,20 @@ class RepoRunner < Sunny
     FileUtils.cd('..')
     nil # no news is good news    
   end
+  
+#   def make_repo(g_opts, repo_name, vers_tag)
+#   def make_repo(g_opts, repo_dir, repo_name)
+#     make_lib(g_opts, repo_dir, repo_name)
+# 
+# #   make_runtime(g_opts, "tree-sitter.#{vers_tag}")
+# #   def make_runtime(g_opts, repo_dir)
+#     repo_dir = "#{repo_name}.#{vers_tag}"
+#     
+# #   def make_lang(g_opts, repo_name, vers_tag=nil)
+#     repo_dir, vers_tag = most_recent(repo_name)
+#     return repo_name unless repo_dir
+# 
+#   end
 
 
 # run --tag_list not --lang_list!!! shd these be one name???
@@ -185,8 +202,7 @@ class RepoRunner < Sunny
   
   def most_recent(repo_name)
     cand = list_shunt_dirs(repo_name)
-    puts
-    puts "^^^ repo_name: #{repo_name}"
+    puts "^^^ most_recent repo_name: #{repo_name}"
     return nil if cand.empty?
 #     best = cand.sort.last ### alpha sort!!!
     # numeric sort
@@ -361,32 +377,29 @@ class RepoRunner < Sunny
     File.write('src/lang_repos.json', JSON.pretty_generate(info))
   end
   
-# ruby src/repo_runner.rb -i -l "bash" make_lang
-# ruby src/repo_runner.rb -i -t "0.20.0" make_runtime
-
-  def do_the_thing(g_opts, cmd, c_opts)
-    puts `date`
-    puts '+=+=+=+=+'
-    
-    # Do any cmd that DOESN'T need to be run in workdir/ and return
-    case cmd
-    when 'list_lang_repos'
-      return list_lang_repos
+  
+  def tag_targets(tag_list)
+    return [] if tag_list.empty?
+    tag_list.split(/,\s*/).map do |e| 
+      ['https://github.com/tree-sitter/tree-sitter', 'tree-sitter', e]
     end
-    
+  end
+  # check against --json for what to clone
+  def clone_targets(g_opts)
     if g_opts.json.empty? && !g_opts.lang_list.empty?
       puts "Error: --lang_list requires --json."
       exit 1
     end
     
 #     repo_url, repo_name, vers_tag
-    target_list = []
-    # runtimes
-    unless g_opts.tag_list.empty?
-      target_list += g_opts.tag_list.split(/,\s*/).map do |e| 
-        ['https://github.com/tree-sitter/tree-sitter', 'tree-sitter', e]
-      end
-    end
+#     target_list = []
+#     # runtimes
+#     unless g_opts.tag_list.empty?
+#       target_list += g_opts.tag_list.split(/,\s*/).map do |e| 
+#         ['https://github.com/tree-sitter/tree-sitter', 'tree-sitter', e]
+#       end
+#     end
+    target_list = tag_targets(g_opts.tag_list)
     
     # langs
     unless g_opts.json.empty?
@@ -411,31 +424,89 @@ class RepoRunner < Sunny
       
       target_list += lang_list.map{|e| [e['url'], File.basename(e['url']), e['vers']]}
     end
+    target_list
+  end
+  
+  def repo_targets(lang_list, repo_dirs)
+    # for langs, find highest tag we have cloned
+    targets = lang_list.split(/,\s*/).map do |e| 
+      repo_name = e.gsub(/_/, '-').gsub(/^/, 'tree-sitter-')
+      repo_dir, vers_tag = most_recent(repo_name)
+#       return repo_name unless repo_dir
+      unless repo_dir
+        "Missing repo #{e}. Skipping."
+        next nil
+      end
+      [repo_dir, vers_tag, repo_name]
+    end.compact
     
-=begin    
-      
-      # make_lang
-       g_opts.lang_list.split(/,\s*/).each do |lang_repo| 
-        repo = lang_repo.gsub(/^tree-sitter-/, '').gsub(/^/, 'tree-sitter-')
-        repo_name = make_lang(g_opts, repo)
+    # repo_dirs are specific
+    targets += repo_dirs.split(/,\s*/).map do |e|
+      unless Dir.exist?(e)
+        "Missing repo #{e}. Skipping."
+        next nil
+      end
+      repo_name, vers_tag = repo_dir.split(/\..*/)
+      [e, vers_tag, repo_name]
+    end.compact
+  end
+  
+# ruby src/repo_runner.rb -i -l "bash" make_lang
+# ruby src/repo_runner.rb -i -t "0.20.0" make_runtime
 
-      # make runtime
-      g_opts.tag_list.split(/,\s*/).each do |vers_tag| 
-        make_runtime(g_opts, "tree-sitter.#{vers_tag}")
- 
+  def do_the_thing(g_opts, cmd, c_opts)
+    puts `date`
+    puts '+=+=+=+=+'
+    
+    # Do any cmd that DOESN'T need to be run in workdir/ and return
+    case cmd
+    when 'list_lang_repos'
+      return list_lang_repos
     end
-  def make_runtime(g_opts, repo_dir)
-    puts "RepoRunner make_runtime #{repo_dir}"
-    make_lib(g_opts, repo_dir, 'tree-sitter')
-  end
-  def make_lang(g_opts, repo_name, vers_tag=nil)
-    repo_dir, vers_tag = most_recent(repo_name)
-    return repo_name unless repo_dir
-
-    make_lib(g_opts, repo_dir)
-  end
-=end
     
+    puts "g_opts:"
+    ap g_opts
+    
+=begin
+    if g_opts.json.empty? && !g_opts.lang_list.empty?
+      puts "Error: --lang_list requires --json."
+      exit 1
+    end
+    
+#     repo_url, repo_name, vers_tag
+    target_list = []
+    # runtimes
+    unless g_opts.tag_list.empty?
+      target_list += g_opts.tag_list.split(/,\s*/).map do |e| 
+        ['https://github.com/tree-sitter/tree-sitter', 'tree-sitter', e]
+      end
+    end
+    target_list = tag_targets(g_opts)
+    
+    # langs
+    unless g_opts.json.empty?
+      lang_plan = JSON.parse(File.read(g_opts.json))
+      # vet json structure!!!
+      
+      # whole lang plan
+      lang_list = lang_plan.values
+      
+      # just a subset
+      unless g_opts.lang_list.empty?
+        # just this subset of lang_plan
+        lang_list = g_opts.lang_list.split(/,\s*/).map do |e|
+          info = lang_plan[e]
+          unless info
+            puts "No lang #{e} in #{g_opts.json}. Skipping."
+            next nil
+          end
+          info
+        end.compact
+      end
+      
+      target_list += lang_list.map{|e| [e['url'], File.basename(e['url']), e['vers']]}
+    end
+=end        
     puts "workdir: #{g_opts.workdir}+++"
     # DOES NOT prevent womping anything in workdir/
     FileUtils.mkdir_p(g_opts.workdir)
@@ -476,10 +547,24 @@ class RepoRunner < Sunny
       end
       
     when 'clone'
+      target_list = clone_targets(g_opts)
       ap target_list
       target_list.each do |url, name, vers|
         clone_repo(url, name, vers)
       end
+    when 'make'
+      tag_list = tag_targets(g_opts.tag_list)
+      puts "make tag_list"
+      ap tag_list
+      tag_list.each do |url, name, vers|
+        make_lib(g_opts, "#{name}.#{vers}", name)
+      end
+      repo_list = repo_targets(g_opts.lang_list, g_opts.repo_dirs)
+      puts "make repo_list"
+      ap repo_list
+      repo_list.each do |repo_dir, vers, name|
+        make_lib(g_opts, repo_dir, name)
+      end      
       
     when 'clone_runtime'
       g_opts.tag_list.split(/,\s*/).each do |vers_tag| 
