@@ -1,0 +1,122 @@
+{
+  "tree-sitter.0.20.0": {
+    "layout": [
+      "tree-sitter/lib/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:11 EST\n"
+  },
+  "tree-sitter.0.20.6": {
+    "layout": [
+      "tree-sitter/lib/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:13 EST\n"
+  },
+  "tree-sitter.0.20.7": {
+    "layout": [
+      "tree-sitter/lib/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:15 EST\n"
+  },
+  "tree-sitter-bash.0.19.0": {
+    "layout": [
+      "tree-sitter-bash/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:16 EST\n"
+  },
+  "tree-sitter-c.0.20.2": {
+    "layout": [
+      "tree-sitter-c/examples/parser.c",
+      "tree-sitter-c/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:17 EST\n"
+  },
+  "tree-sitter-c-sharp.0.20.0": {
+    "layout": [
+      "tree-sitter-c-sharp/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:18 EST\n"
+  },
+  "tree-sitter-cpp.0.20.0": {
+    "layout": [
+      "tree-sitter-cpp/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:20 EST\n"
+  },
+  "tree-sitter-embedded-template.0.20.0": {
+    "layout": [
+      "tree-sitter-embedded-template/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:20 EST\n"
+  },
+  "tree-sitter-html.0.19.0": {
+    "layout": [
+      "tree-sitter-html/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:21 EST\n"
+  },
+  "tree-sitter-javascript.0.19.0": {
+    "layout": [
+      "tree-sitter-javascript/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:22 EST\n"
+  },
+  "tree-sitter-json.0.19.0": {
+    "layout": [
+      "tree-sitter-json/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:22 EST\n"
+  },
+  "tree-sitter-make.untagged": {
+    "layout": [
+      "tree-sitter-make/src/parser.c"
+    ],
+    "commit": "a4b9187417d6be349ee5fd4b6e77b4172c6827dd",
+    "date_cloned": "Wed 21 Dec 2022 18:51:24 EST\n"
+  },
+  "tree-sitter-markdown.0.7.1": {
+    "layout": [
+      "tree-sitter-markdown/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:25 EST\n"
+  },
+  "tree-sitter-python.0.20.0": {
+    "layout": [
+      "tree-sitter-python/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:25 EST\n"
+  },
+  "tree-sitter-ruby.0.19.0": {
+    "layout": [
+      "tree-sitter-ruby/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:26 EST\n"
+  },
+  "tree-sitter-rust.0.20.3": {
+    "layout": [
+      "tree-sitter-rust/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:27 EST\n"
+  },
+  "tree-sitter-sexp.untagged": {
+    "layout": [
+      "tree-sitter-sexp/src/parser.c"
+    ],
+    "commit": "b46b9f784b3e31bcbc0632f3294f1af6ba049241",
+    "date_cloned": "Wed 21 Dec 2022 18:51:28 EST\n"
+  },
+  "tree-sitter-typescript.0.20.1": {
+    "layout": [
+      "tree-sitter-typescript/tsx/src/parser.c",
+      "tree-sitter-typescript/typescript/src/parser.c"
+    ],
+    "date_cloned": "Wed 21 Dec 2022 18:51:30 EST\n"
+  },
+  "tree-sitter-wasm.untagged": {
+    "layout": [
+      "tree-sitter-wasm/wat/src/parser.c",
+      "tree-sitter-wasm/wast/src/parser.c"
+    ],
+    "commit": "2ca28a9f9d709847bf7a3de0942a84e912f59088",
+    "date_cloned": "Wed 21 Dec 2022 18:51:32 EST\n"
+  }
+}

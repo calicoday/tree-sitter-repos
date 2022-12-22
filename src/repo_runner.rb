@@ -8,6 +8,7 @@ require 'open-uri'
 require 'json'
 
 require 'fileutils'
+require 'pathname'
 require 'awesome_print'
 
 class RepoRunner < Sunny
@@ -145,7 +146,7 @@ class RepoRunner < Sunny
 
   def most_recent(repo_name)
     cand = list_shunt_dirs(repo_name)
-    puts "^^^ most_recent repo_name: #{repo_name}"
+#     puts "^^^ most_recent repo_name: #{repo_name}"
     return nil if cand.empty?
     # numeric sort
     best_vers = 'untagged' if cand.length == 1 && cand[0] == "#{repo_name}.untagged"
@@ -155,8 +156,8 @@ class RepoRunner < Sunny
   end
   
   def git_clone(repo_url, vers_tag)
-#   def git_clone(repo_url, vers_tag=nil)
-    vers_tag ?
+    # hardcoded prepend 'v' to vers_tag bc tree-sitter has it!!! FIXME!!!
+    vers_tag && vers_tag != 'untagged' ?
       `git clone -b v#{vers_tag} --depth 1 #{repo_url}.git` :
       `git clone #{repo_url}.git`
   end
@@ -314,13 +315,25 @@ class RepoRunner < Sunny
       exit 1
     end
 
-    lang_plan = JSON.parse(File.read(g_opts.json))
+    # we've cd into workdir/, so prepend ..
+    json_path = Pathname.new('..') + g_opts.json
+    lang_plan = JSON.parse(File.read(json_path))
+#     lang_plan = JSON.parse(File.read(g_opts.json))
     # vet json structure!!!
 
-    if g_opts.lang_list.empty?
+    if g_opts.lang_list && g_opts.lang_list.empty?
       # whole json
+#       return target_list + 
+#         lang_plan.map{|k,v| [v['url'], File.basename(v['url']), v['vers']]}
       return target_list + 
-        lang_plan.map{|k,v| [v['url'], File.basename(v['url']), v['vers']]}
+        lang_plan.map do |k,v| 
+          ### These langs have tags without 'v' or not 3 digits or something!!! FIXME!!!
+          if ['elisp', 'sparql', 'swift', 'turtle', 'verilog', 'kotlin'].include?(k.to_s)
+            puts "Tag algo needs help for #{k}, sorry. Skipping."
+            next nil
+          end
+          [v['url'], File.basename(v['url']), v['vers']]
+        end.compact
     end
     
     gather = {}
@@ -328,6 +341,12 @@ class RepoRunner < Sunny
     short_names += g_opts.lang_list.split(/,\s*/) if g_opts.lang_list
     short_names += lang_core.keys.map(&:to_s) if g_opts.core_langs
     target_list += short_names.sort.uniq.map do |e|
+#       puts "%%% short_names: #{short_names.inspect}"
+      ### These langs have tags without 'v' or not 3 digits or something!!! FIXME!!!
+      if ['elisp', 'sparql', 'swift', 'turtle', 'verilog', 'kotlin'].include?(e)
+        puts "Tag algo needs help for #{e}, sorry. Skipping."
+        next nil
+      end
       info = lang_plan[e]
       unless info
         puts "No lang #{e} in #{g_opts.json}. Skipping."
@@ -377,7 +396,7 @@ class RepoRunner < Sunny
     ap g_opts
     # always
     if !g_opts.json.empty? && !g_opts.lang_list
-      puts "Error: --json requires --lang-list (pass '' to process all langs in file)."
+      puts "Error: --json requires --lang-list (pass '' to process all langs in file) or --core-langs."
     end
     # for clone:
     if g_opts.lang_list && g_opts.json.empty?
@@ -400,14 +419,6 @@ class RepoRunner < Sunny
       return dev(g_opts, cmd, c_opts)
     end
     
-    puts "g_opts:"
-    ap g_opts
-    
-    if !g_opts.json.empty? && !g_opts.lang_list
-      puts "Error: --json requires --lang-list (pass '' to process all langs in file)."
-      exit 1
-    end
-
     # DOES NOT prevent womping anything in workdir/
     FileUtils.mkdir_p(g_opts.workdir)
     FileUtils.cd(g_opts.workdir)

@@ -4,9 +4,11 @@ RepoRunner is a utility for cloning and building versioned shared/dynamic librar
 
 As the Tree-sitter project is under active development, the external interface to its runtime changes. Any project using the runtime compiled as a shared/dynamic library needs to be able to distiguish different versions of the library and the corresponding header files. The same goes for compiled language parsers. RepoRunner manages cloning and building the libraries, giving versioned names to all resulting files and directories. Versions are taken from a repo's git tags (or 'untagged', if it has no tags yet) and appended to project name.
 
+The RepoRunner project is at an early stage. The Tree-sitter repos are currently quite inconsistent in tagging and in project directory structures (see [Project Notes](#project-notes)). Obviously, more normalized repo practices would make things easier but RepoRunner does what it can with the repos as they are (accommodating ever more varied, as I get to it). See [To Do](#to-do) for a current list of runtime and lang versions known to work.
+
 The RepoRunner `list_lang_repos` command will create json file, `lang_repos.json`, containing a list of known language parser repos by web scraping the Tree-sitter [Introduction: Available Parsers](https://tree-sitter.github.io/tree-sitter/#available-parsers) and calling `git -c` or `git ls-remote` to get the most recent version tag for each. This file (or another with portions copied from it) can then be passed to the `clone` command with the --json option and exactly what subset of the listed languages to process with the --lang-list option (eg --json='lang_repos.json' --lang-list='bash, rust, make'). The file `src/ref_lang_repos.json` is the `lang_repos.json` created the last time I called `list_lang_repos`.
 
-The RepoRunner `clone` command creates and updates a file `repos/cloned_repos.json` with brief info about each repo cloned. Any tagged version of a repo will be cloned detached HEAD. Any untagged repo will simply clone the full, latest commit -- two different, untagged commits are not distinguished. The file `src/ref_cloned_repos.json` is the `cloned_repos.json` created the last time I cloned all current languages and runtime versions 0.20.0, 0.20.6 and 0.20.7, for reference.
+The RepoRunner `clone` command creates and updates a file `repos/cloned_repos.json` with brief info about each repo cloned. Any tagged version of a repo will be cloned detached HEAD. Any untagged repo will simply clone the full, latest commit -- two different, untagged commits are not distinguished. The file `src/ref_cloned_repos.json` is the `cloned_repos.json` created the last time I cloned all core languages, for reference.
 
 The RepoRunner `make` command uses a single Makefile, based on material in the Makefiles of the main tree-sitter repo and a couple of language parser repos. The Makefile cherry-picks the necessary source files from the listed runtime or language repos and builds libraries into a new `made/` directory (some language repos currently have a directory named `build/` containing source material).
 
@@ -139,7 +141,7 @@ ruby src/repo_runner.rb --tag-list='0.20.0' clone
 Clones version 0.20.0 of the tree-sitter runtime to `repos/` and adds or updates an entry in `repos/cloned_repos.json`
 
 ```
-ruby src/repo_runner.rb -t '0.20.7' --json='lang_repos.json' --tag-list='bash' clone
+ruby src/repo_runner.rb -t '0.20.7' --json='src/lang_repos.json' --lang-list='bash' clone
 ```
 Clones version 0.20.7 of the runtime and the version listed in `lang_repos.json` for bash
 
@@ -174,16 +176,53 @@ Makes and installs runtime version 0.20.7 and the lastest cloned version of each
 - (not included but maybe ought to be are Java, YAML)
 
 
-### To Do
+## To Do
 
+- accomodate more repos. How things stand:
+  - Runtime versions 0.20.0, 0.20.6, 0.20.7 work. I haven't tried any others.
+  - Me, I use the 13 of the core langs that make properly: bash, c, c-sharp, cpp, embedded-template, html, javascript, json, make, markdown, python, ruby, rust (leaving out sexp, typescript and wasm, because parser.c is not at `src/parser.c` exactly)
+  - Clone fails for elisp, sparql, swift, turtle, verilog and kotlin, because the `list_lang_repl` tag-to-version translation is too blunt.
 - better docs
+- add the C demos here to test linking [why aren't they in this repo, again?]
+- the RepoRunner git clone tag handling is VERY blunt and fails for elisp, sparql, swift, turtle, verilog and kotlin, so they are skipped.
 - the contents of the generated .pc files are almost certainly wrong. Will fix.
 - fix Makefile to handle lang repos with parser.c somewhere other than `src/`, eg tree-sitter-wasm has `wast/src/parser.c` and `wat/src/parser.c`.
 - calling the Makefile directly from a repo to be built, with `make -f` rather than through the `repo_runner.rb`, ought to work but I haven't tested it since I changed a bunch of things, so I assume it needs patching.
 - the --repo_dirs option is not implemented for `clone`and disabled for `make`. :-/
-- `Makefile` and `repo_runner.rb` need some redundancy DRYed up.
+- `Makefile` and `repo_runner.rb` need some DRYing up and more graceful error handling.
 - add a roster listing which versions of langs work with which runtimes.
 - better option vetting
 - add automated tests
+- something something other platforms. Argh.
 
+
+## Project Notes
+
+### Repo organization and versioning
+
+The design of RepoRunner addresses an idealized repo structure, with kludges to handle the repos as they actually are (with varying degrees of success). My fantasy structure has:
+```
+repo_name/
+  lib/
+    include/
+      [external headers]
+    src/
+      [source files]
+```
+
+The main tree-sitter repo has this structure, none of the language parser repos do. The external header for a lang, eg tree-sitter-bash.h, should be generated but probably into `repo_name/lib/include/` for local use.
+
+I imagine a `makings/` directory at the top level of the main tree-sitter repo, containing the Makefile all runtime and lang libraries are made with, plus template files for lang header and pkgconfig:
+```
+makings/
+  tree_sitter_runtime.pc.in
+  tree_sitter_lang.pc.in
+  tree_sitter_lang.h.in
+  Makefile
+```
+and any language parser could be built with `make -f path-to-makings/Makefile` from its repo.
+
+Each language repo should contain a single language parser. So for example, tree-sitter-wasm ought to be two repos, tree-sitter-wast and tree-sitter-wat. Most language repos will be very small -- that's ok, simple things should look simple, yet each will have a space for language variant-specific issues and discussions. The javascript and rust langs currently in the main tree-sitter repo should get their own repos (the cli and tests that use them can find them there). The runtime (and possibly cli, highlighter, etc) might be better off in its own repo, too.
+
+There has been much discussion in the main tree-sitter repo about how repo versioning should work. For my purposes, what matters is that changes in the external interface (ie code changes in any external header, such as api.h or tree-sitter-bash.h) always prompts a tag change. I'm not convinced aligning runtime and lang version tags is beneficial (or indeed, entirely feasible without contortions) but in any case, the tag FORMAT should be standardized. I strongly favour simply digits.digits.digits, eg '0.20.7', no 'v' prefix or other.
 
